@@ -1,0 +1,45 @@
+services:
+  chroma:
+    image: chromadb/chroma:1.5.8
+    container_name: acerola-chroma
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: container/Dockerfile
+    container_name: acerola-api
+    command: python -m backend.main
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+    env_file:
+      - ../.env
+    depends_on:
+      - chroma
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ..
+      dockerfile: container/Dockerfile
+    container_name: acerola-ui
+    command: >
+      streamlit run backend/ui/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    environment:
+      API_URL: http://api:8000/api/v1
+    env_file:
+      - ../.env
+    restart: unless-stopped
+
+volumes:
+  chroma_data:

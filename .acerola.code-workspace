@@ -1,0 +1,38 @@
+{
+  "folders": [
+    { "path": "backend" },
+    { "path": "frontend" },
+    { "path": "container" }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder:backend}\\venv\\Scripts\\python.exe",
+    "python.testing.pytestArgs": ["${workspaceFolder:backend}"],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "svelte.enable-ts-plugin": true,
+    "editor.formatOnSave": true,
+    "[python]": {
+      "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "[svelte]": {
+      "editor.defaultFormatter": "svelte.svelte-vscode"
+    },
+    "[yaml]": {
+      "editor.defaultFormatter": "redhat.vscode-yaml"
+    },
+    "[dockercompose]": {
+      "editor.defaultFormatter": "redhat.vscode-yaml"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.black-formatter",
+      "ms-python.vscode-pylance",
+      "svelte.svelte-vscode",
+      "redhat.vscode-yaml",
+      "ms-azuretools.vscode-docker",
+      "ms-vscode-remote.remote-containers"
+    ]
+  }
+}

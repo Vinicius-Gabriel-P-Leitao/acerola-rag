@@ -1,0 +1,43 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}\\venv\\Scripts\\python.exe",
+  "python.terminal.activateEnvironment": true,
+  "editor.formatOnSave": true,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter"
+  },
+  "files.exclude": {
+    "**/__pycache__": true
+  },
+  "search.exclude": {
+    "**/__pycache__": true
+  },
+  "material-icon-theme.files.customClones": [
+    {
+      "name": "main-py",
+      "base": "python",
+      "color": "cyan"
+    },
+    {
+      "name": "config-py",
+      "base": "python",
+      "color": "red"
+    }
+  ],
+  "material-icon-theme.files.associations": {
+    "config.py": "config-py",
+    "main.py": "main-py"
+  },
+  "material-icon-theme.folders.associations": {
+    "ingestion": "download",
+    "indexing": "database",
+    "llm": "functions",
+    "rag": "database"
+  },
+  "python-envs.pythonProjects": [
+    {
+      "path": ".",
+      "envManager": "ms-python.python:venv",
+      "packageManager": "ms-python.python:pip"
+    }
+  ]
+}

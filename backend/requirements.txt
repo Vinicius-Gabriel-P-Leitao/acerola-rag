@@ -1,0 +1,43 @@
+# Core RAG
+llama-index-core>=0.12.0
+llama-index-embeddings-huggingface>=0.5.0
+llama-index-vector-stores-faiss>=0.3.0
+llama-index-vector-stores-chroma>=0.4.0
+openai>=1.30.0
+anthropic>=0.30.0
+llama-index-readers-file>=0.4.0
+
+# Document parsing (PDF + Word, sem precisar de pypdf/python-docx separado)
+unstructured[pdf,docx]>=0.15.0
+
+# OCR (usa OpenCV internamente)
+easyocr>=1.7.0
+
+# Vector stores
+faiss-cpu>=1.8.0
+chromadb>=0.5.0
+
+# Embeddings
+sentence-transformers>=3.0.0
+
+# Observabilidade
+langfuse>=2.0.0
+
+# UI
+streamlit>=1.37.0
+
+# API
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+requests>=2.32.0
+
+# Config
+python-dotenv>=1.0.0
+pydantic-settings>=2.0.0
+
+# Dev / qualidade
+black>=24.0.0
+ruff>=0.5.0
+pytest>=8.0.0
+pytest-cov>=5.0.0
