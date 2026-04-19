@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fly, fade } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { documentsStore, type DocumentMeta } from '$lib/hooks/store/use-documents.hook';
 	import ShButton from '$lib/components/sh-button/sh-button.svelte';
@@ -22,6 +23,7 @@
 	import TrashIcon from '@lucide/svelte/icons/trash-2';
 	import EyeIcon from '@lucide/svelte/icons/eye';
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
+	import XIcon from '@lucide/svelte/icons/x';
 
 	const QUEUE_ICONS: Record<string, string> = {
 		pending: '⏳',
@@ -31,6 +33,7 @@
 	};
 
 	let uploadFiles = $state<FileList | null>(null);
+	let fileInputEl = $state<HTMLInputElement | null>(null);
 	let textTitle = $state('');
 	let textContent = $state('');
 	let searchInput = $state('');
@@ -59,6 +62,7 @@
 			await documentsStore.uploadFiles(Array.from(uploadFiles));
 			toast.success('Arquivos enviados para indexação');
 			uploadFiles = null;
+			if (fileInputEl) fileInputEl.value = '';
 			await documentsStore.fetchQueue();
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Erro no upload');
@@ -135,20 +139,39 @@
 	<div class="flex flex-col gap-6 p-4">
 		<!-- Upload -->
 		<section class="border-border bg-card rounded-xl border p-4" style="box-shadow: var(--shadow-soft-card);">
-			<h2 class="text-card-foreground mb-3 font-semibold">📤 Upload de documentos</h2>
-			<p class="text-muted-foreground mb-3 text-xs">PDF, Word, TXT, Markdown — máximo 20 arquivos</p>
+			<h2 class="text-card-foreground mb-1 font-semibold">📤 Upload de documentos</h2>
+			<p class="text-muted-foreground mb-4 text-xs">PDF, Word, TXT, Markdown — máximo 20 arquivos</p>
+
 			<input
+				bind:this={fileInputEl}
 				type="file"
 				accept=".pdf,.docx,.doc,.txt,.md"
 				multiple
-				class="text-foreground mb-3 w-full text-sm"
+				class="hidden"
 				onchange={(e) => (uploadFiles = (e.target as HTMLInputElement).files)}
 			/>
+
+			<!-- Drop zone -->
+			<button
+				type="button"
+				onclick={() => fileInputEl?.click()}
+				class="border-border hover:border-primary hover:bg-primary/5 flex w-full cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 transition-colors"
+			>
+				<UploadIcon class="text-muted-foreground size-8" />
+				<span class="text-sm font-medium">Clique para selecionar arquivos</span>
+				<span class="text-muted-foreground text-xs">ou arraste aqui</span>
+			</button>
+
 			{#if uploadFiles?.length}
-				<ShButton onclick={handleUpload} size="sm" class="gap-2">
-					<UploadIcon class="size-4" />
-					Enviar {uploadFiles.length} arquivo(s)
-				</ShButton>
+				<div class="mt-3 flex items-center justify-between">
+					<span class="text-muted-foreground text-sm">
+						{uploadFiles.length} arquivo(s) selecionado(s)
+					</span>
+					<ShButton onclick={handleUpload} size="sm" class="gap-2">
+						<UploadIcon class="size-4" />
+						Enviar
+					</ShButton>
+				</div>
 			{/if}
 
 			{#if $documentsStore.jobs.length > 0}
@@ -259,28 +282,75 @@
 	</div>
 </div>
 
-<!-- Content viewer dialog -->
-<ShDialog bind:open={viewOpen}>
-	<ShDialogContent class="max-w-2xl">
-		<ShDialogHeader>
-			<ShDialogTitle>Conteúdo do documento</ShDialogTitle>
-			{#if viewDoc}
-				<ShDialogDescription>{viewDoc.source}</ShDialogDescription>
-			{/if}
-		</ShDialogHeader>
-		{#if viewLoading}
-			<div class="flex justify-center py-8">
-				<ShSpinner class="size-6" />
+<!-- Content viewer — bottom sheet on mobile, large dialog on desktop -->
+{#if viewOpen}
+	<!-- Backdrop -->
+	<div
+		class="fixed inset-0 z-50 bg-black/50"
+		transition:fade={{ duration: 150 }}
+		onclick={() => (viewOpen = false)}
+		role="presentation"
+	></div>
+
+	<!-- Mobile: bottom sheet -->
+	<div
+		class="bg-card fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-2xl md:hidden"
+		transition:fly={{ y: 400, duration: 250 }}
+	>
+		<div class="flex items-center justify-between border-b px-4 py-3">
+			<div>
+				<p class="font-semibold">Conteúdo do documento</p>
+				{#if viewDoc}<p class="text-muted-foreground truncate text-xs">{viewDoc.source}</p>{/if}
 			</div>
-		{:else if viewDoc}
-			<textarea
-				readonly
-				class="border-input bg-muted text-foreground h-96 w-full rounded-md border p-3 font-mono text-xs"
-				value={viewDoc.content}
-			></textarea>
-		{/if}
-	</ShDialogContent>
-</ShDialog>
+			<button onclick={() => (viewOpen = false)} class="text-muted-foreground hover:text-foreground">
+				<XIcon class="size-5" />
+			</button>
+		</div>
+		<div class="min-h-0 flex-1 overflow-y-auto p-4">
+			{#if viewLoading}
+				<div class="flex justify-center py-12"><ShSpinner class="size-6" /></div>
+			{:else if viewDoc}
+				<textarea
+					readonly
+					class="border-input bg-muted text-foreground h-full min-h-64 w-full rounded-md border p-3 font-mono text-xs"
+					value={viewDoc.content}
+				></textarea>
+			{/if}
+		</div>
+	</div>
+
+	<!-- Desktop: centered large dialog -->
+	<div
+		class="fixed inset-0 z-50 hidden items-center justify-center p-6 md:flex"
+		transition:fade={{ duration: 150 }}
+	>
+		<div
+			class="bg-card border-border flex h-[80vh] w-full max-w-4xl flex-col rounded-xl border shadow-xl"
+			transition:fly={{ y: -16, duration: 200 }}
+		>
+			<div class="border-border flex items-center justify-between border-b px-6 py-4">
+				<div>
+					<p class="font-semibold">Conteúdo do documento</p>
+					{#if viewDoc}<p class="text-muted-foreground truncate text-sm">{viewDoc.source}</p>{/if}
+				</div>
+				<button onclick={() => (viewOpen = false)} class="text-muted-foreground hover:text-foreground">
+					<XIcon class="size-5" />
+				</button>
+			</div>
+			<div class="min-h-0 flex-1 overflow-y-auto p-6">
+				{#if viewLoading}
+					<div class="flex justify-center py-12"><ShSpinner class="size-6" /></div>
+				{:else if viewDoc}
+					<textarea
+						readonly
+						class="border-input bg-muted text-foreground h-full w-full rounded-md border p-4 font-mono text-sm"
+						value={viewDoc.content}
+					></textarea>
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
 
 <!-- Delete confirm dialog -->
 <ShDialog bind:open={deleteOpen}>

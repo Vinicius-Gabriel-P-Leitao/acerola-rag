@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     api_url: str = "http://localhost:8000/api/v1"
+    debug: bool = False
 
     # ── Langfuse (lidos do .env — deixe em branco para desabilitar) ───────────
     langfuse_public_key: str = ""

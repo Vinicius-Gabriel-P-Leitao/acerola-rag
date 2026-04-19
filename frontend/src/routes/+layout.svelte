@@ -5,6 +5,7 @@
 	import { mobileStore } from '$lib/hooks/ui/use-mobile.hook';
 	import { themeStore } from '$lib/hooks/ui/use-theme.hook';
 	import ShSonner from '$lib/components/sh-sonner/sh-sonner.svelte';
+	import ShThemeToggle from '$lib/components/sh-theme-toggle/sh-theme-toggle.svelte';
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
 	import SettingsIcon from '@lucide/svelte/icons/settings';
 
@@ -27,8 +28,9 @@
 		class="bg-sidebar border-sidebar-border hidden w-56 shrink-0 flex-col border-r md:flex"
 		style="box-shadow: var(--shadow-sidebar);"
 	>
-		<div class="border-sidebar-border flex h-14 items-center border-b px-4">
+		<div class="border-sidebar-border flex h-14 items-center justify-between border-b px-4">
 			<span class="text-sidebar-foreground text-lg font-semibold">🍊 Acerola RAG</span>
+			<ShThemeToggle />
 		</div>
 		<nav class="flex flex-col gap-1 p-2">
 			{#each navItems as { href, label, Icon }}
@@ -65,6 +67,9 @@
 			{label}
 		</a>
 	{/each}
+	<div class="flex items-center justify-center px-3">
+		<ShThemeToggle />
+	</div>
 </nav>
 
 <ShSonner />
