@@ -38,8 +38,8 @@ class Settings(BaseSettings):
     qdrant_port: int = 6333
 
     # ── Ingestion ────────────────────────────────────────────────────────────
-    chunk_size: int = 512
-    chunk_overlap: int = 64
+    chunk_size: int = 1024
+    chunk_overlap: int = 128
     upload_dir: Path = Path("./data/uploads")
     max_upload_files: int = 20
 

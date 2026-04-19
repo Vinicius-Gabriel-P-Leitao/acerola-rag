@@ -43,13 +43,48 @@ def _faiss_storage(persist_dir: Optional[Path] = None):
     )
 
 
+_sparse_model = None
+
+
+def _get_sparse_model():
+    global _sparse_model
+    if _sparse_model is None:
+        from fastembed import SparseTextEmbedding
+        _sparse_model = SparseTextEmbedding(model_name="Qdrant/bm25")
+    return _sparse_model
+
+
+def _sparse_doc_fn(texts: list[str]) -> tuple[list[list[int]], list[list[float]]]:
+    model = _get_sparse_model()
+    embeddings = list(model.embed(texts))
+    return (
+        [list(e.indices) for e in embeddings],
+        [list(e.values) for e in embeddings],
+    )
+
+
+def _sparse_query_fn(texts: list[str]) -> tuple[list[list[int]], list[list[float]]]:
+    model = _get_sparse_model()
+    embeddings = list(model.query_embed(texts))
+    return (
+        [list(e.indices) for e in embeddings],
+        [list(e.values) for e in embeddings],
+    )
+
+
 def _qdrant_storage():
     from llama_index.core import StorageContext
     from llama_index.vector_stores.qdrant import QdrantVectorStore
     from qdrant_client import QdrantClient
 
     client = QdrantClient(host=cfg.qdrant_host, port=cfg.qdrant_port)
-    vector_store = QdrantVectorStore(client=client, collection_name="acerola_rag")
+    vector_store = QdrantVectorStore(
+        client=client,
+        collection_name="acerola_rag",
+        enable_hybrid=True,
+        sparse_doc_fn=_sparse_doc_fn,
+        sparse_query_fn=_sparse_query_fn,
+    )
     return StorageContext.from_defaults(vector_store=vector_store)
 
 

@@ -150,7 +150,7 @@ async def query_documents(req: QueryRequest):
                 f"'{cfg.get_provider()}'. Verifique a API key no painel lateral."
             ),
         )
-    answer = query(req.question)
+    answer = query(req.question, session_id=req.session_id)
     return QueryResponse(answer=answer)
 
 

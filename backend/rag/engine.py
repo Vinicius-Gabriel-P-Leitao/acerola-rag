@@ -1,17 +1,28 @@
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from llama_index.core.base.base_query_engine import BaseQueryEngine
+    from llama_index.core.chat_engine.types import BaseChatEngine
 
 from backend.config import settings as cfg
 from backend.rag.pipeline import get_or_create_index
 
-_engine: Optional["BaseQueryEngine"] = None
+_sessions: dict[str, "BaseChatEngine"] = {}
+_index = None
 
 
-def _build_engine(index):
+def _get_index():
+    global _index
+    if _index is None:
+        _index = get_or_create_index()
+    return _index
+
+
+def _build_engine():
     from llama_index.core import Settings
-    from llama_index.core.prompts import PromptTemplate
+    from llama_index.core.chat_engine import CondensePlusContextChatEngine
+    from llama_index.core.memory import ChatMemoryBuffer
+    from llama_index.core.postprocessor import LongContextReorder
+    from llama_index.core.postprocessor.types import BaseNodePostprocessor
 
     from backend.llm.client import create_llm
 
@@ -38,6 +49,10 @@ def _build_engine(index):
         "- Não use saudações ou introduções como 'Aqui está a resposta:'."
     )
 
+    index = _get_index()
+    if index is None:
+        return None
+
     Settings.llm = create_llm(
         provider=cfg.get_provider(),
         model=cfg.get_llm_model(),
@@ -48,16 +63,9 @@ def _build_engine(index):
         system_prompt=system_prompt,
     )
 
-    qa_prompt = PromptTemplate(
-        "Context information is below.\n"
-        "---------------------\n"
-        "{context_str}\n"
-        "---------------------\n"
-        "Given the context information and not prior knowledge, "
-        "answer the query.\n"
-        "Query: {query_str}\n"
-        "Answer: "
-    )
+    retriever = index.as_retriever(similarity_top_k=6)
+    memory = ChatMemoryBuffer.from_defaults(token_limit=4096)
+    postprocessors: list[BaseNodePostprocessor] = [LongContextReorder()]
 
     if cfg.langfuse_public_key and cfg.langfuse_secret_key:
         try:
@@ -69,43 +77,39 @@ def _build_engine(index):
                 secret_key=cfg.langfuse_secret_key,
                 host=cfg.langfuse_base_url,
             )
-
             Settings.callback_manager = CallbackManager([handler])
-
-            return index.as_query_engine(
-                similarity_top_k=3,
-                callback_manager=Settings.callback_manager,
-                text_qa_template=qa_prompt,
-                response_mode="refine",
-            )
         except ImportError:
             pass
 
-    return index.as_query_engine(
-        similarity_top_k=3, text_qa_template=qa_prompt, response_mode="refine"
+    return CondensePlusContextChatEngine.from_defaults(
+        retriever=retriever,
+        memory=memory,
+        node_postprocessors=postprocessors,
+        system_prompt=system_prompt,
     )
 
 
-def get_engine() -> Optional["BaseQueryEngine"]:
-    global _engine
-    if _engine is None:
-        index = get_or_create_index()
-
-        if index is None:
+def get_engine(session_id: str) -> Optional["BaseChatEngine"]:
+    if session_id not in _sessions:
+        engine = _build_engine()
+        if engine is None:
             return None
-        _engine = _build_engine(index)
-    return _engine
+        _sessions[session_id] = engine
+    return _sessions[session_id]
 
 
-def refresh_engine() -> None:
-    global _engine
-    _engine = None
+def refresh_engine(session_id: Optional[str] = None) -> None:
+    global _index
+    _index = None
+    if session_id is not None:
+        _sessions.pop(session_id, None)
+    else:
+        _sessions.clear()
 
 
-def query(question: str) -> str:
-    engine = get_engine()
-
+def query(question: str, session_id: str = "default") -> str:
+    engine = get_engine(session_id)
     if engine is None:
         return "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro."
-    response = engine.query(question)
+    response = engine.chat(question)
     return f"<ContentResponse>\n{str(response)}\n</ContentResponse>"
