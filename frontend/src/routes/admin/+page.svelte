@@ -161,8 +161,8 @@
 	}}
 />
 
-<div class="flex h-full flex-col overflow-y-auto">
-	<div class="mx-auto flex w-full max-w-[60%] min-w-80 flex-col gap-6 p-4">
+<div class="flex flex-1 flex-col overflow-y-auto">
+	<div class="mx-auto flex w-full max-w-full md:max-w-[60%] min-w-0 md:min-w-80 flex-col gap-6 p-4">
 		<!-- Upload -->
 		<section
 			class="rounded-xl border border-border bg-card p-4"

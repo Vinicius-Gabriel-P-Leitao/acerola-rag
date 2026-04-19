@@ -20,7 +20,7 @@ services:
     volumes:
       - ../data:/app/data
     env_file:
-      - ../.env
+      - .env
     depends_on:
       - qdrant
     restart: unless-stopped
