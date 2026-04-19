@@ -18,6 +18,7 @@
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import UserIcon from '@lucide/svelte/icons/user';
 	import ChevronDownIcon from '@lucide/svelte/icons/chevron-down';
+	import { AI_CONTRACT } from '$lib/contracts/ai.contract';
 
 	let question = $state('');
 	let messagesEl = $state<HTMLElement | null>(null);
@@ -65,11 +66,31 @@
 		modelMenuOpen = false;
 	}
 
+	function extractAIResponse(content: string): string {
+		const openTag = AI_CONTRACT.TAGS.CONTENT_RESPONSE_OPEN;
+		const closeTag = AI_CONTRACT.TAGS.CONTENT_RESPONSE_CLOSE;
+
+		const startIndex = content.indexOf(openTag);
+		const endIndex = content.indexOf(closeTag);
+
+		if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+			return content.substring(startIndex + openTag.length, endIndex).trim();
+		}
+
+		return content.trim();
+	}
+
 	const renderedMessages = $derived(
-		$chatStore.messages.map((message) => ({
-			...message,
-			html: message.role === 'assistant' ? marked.parse(message.content) : message.content
-		}))
+		$chatStore.messages.map((message) => {
+			if (message.role === 'assistant') {
+				const extractedContent = extractAIResponse(message.content);
+				return {
+					...message,
+					html: marked.parse(extractedContent)
+				};
+			}
+			return { ...message, html: message.content };
+		})
 	);
 </script>
 

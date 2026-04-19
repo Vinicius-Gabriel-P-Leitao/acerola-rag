@@ -62,8 +62,10 @@ def load_document(path: Path):
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return load_pdf(path)
+
     if suffix in (".docx", ".doc"):
         return load_docx(path)
+
     if suffix in (".txt", ".md"):
         return load_txt(path)
     raise ValueError(f"Tipo não suportado: {suffix}. Use: {SUPPORTED}")

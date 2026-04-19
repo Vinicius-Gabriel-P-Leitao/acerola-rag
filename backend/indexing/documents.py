@@ -23,13 +23,13 @@ def list_documents(page: int = 1, page_size: int = 20, search: str = "") -> dict
             seen[src] = meta
 
     if search:
-        s = search.lower()
-        seen = {k: v for k, v in seen.items() if s in k.lower()}
+        searchLower = search.lower()
+        seen = {k: v for k, v in seen.items() if searchLower in k.lower()}
 
     items = sorted(seen.values(), key=lambda m: m.get("uploaded_at", ""), reverse=True)
     total = len(items)
     start = (page - 1) * page_size
-    return {"total": total, "items": items[start: start + page_size]}
+    return {"total": total, "items": items[start : start + page_size]}
 
 
 def get_document_content(source: str) -> str:
@@ -43,6 +43,7 @@ def delete_document(source: str) -> int:
     col = _collection()
     result = col.get(where={"source": source}, include=[])
     ids = result["ids"]
+
     if ids:
         col.delete(ids=ids)
     return len(ids)

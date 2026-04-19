@@ -71,10 +71,12 @@ class OpenAISDKLLM(CustomLLM):
             max_tokens=self.max_tokens,
             stream=True,
         )
+
         accumulated = ""
         for chunk in stream:
             delta = chunk.choices[0].delta.content or ""
             accumulated += delta
+
             yield CompletionResponse(text=accumulated, delta=delta)
 
 
