@@ -32,10 +32,10 @@ class Settings(BaseSettings):
     embed_dim: int = 384
 
     # ── Vector store ─────────────────────────────────────────────────────────
-    vector_store: str = "chroma"
+    vector_store: str = "qdrant"
     persist_dir: Path = Path("./data/index")  # usado só pelo FAISS
-    chroma_host: str = "localhost"
-    chroma_port: int = 8001
+    qdrant_host: str = "localhost"
+    qdrant_port: int = 6333
 
     # ── Ingestion ────────────────────────────────────────────────────────────
     chunk_size: int = 512

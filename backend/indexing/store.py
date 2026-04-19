@@ -43,21 +43,19 @@ def _faiss_storage(persist_dir: Optional[Path] = None):
     )
 
 
-def _chroma_storage(_persist_dir: Optional[Path] = None):
+def _qdrant_storage():
     from llama_index.core import StorageContext
-    from llama_index.vector_stores.chroma import ChromaVectorStore
+    from llama_index.vector_stores.qdrant import QdrantVectorStore
+    from qdrant_client import QdrantClient
 
-    vector_store = ChromaVectorStore.from_params(
-        collection_name="acerola_rag",
-        host=cfg.chroma_host,
-        port=cfg.chroma_port,
-    )
+    client = QdrantClient(host=cfg.qdrant_host, port=cfg.qdrant_port)
+    vector_store = QdrantVectorStore(client=client, collection_name="acerola_rag")
     return StorageContext.from_defaults(vector_store=vector_store)
 
 
 def _get_storage(persist_dir: Optional[Path] = None):
-    if cfg.vector_store == "chroma":
-        return _chroma_storage(persist_dir)
+    if cfg.vector_store == "qdrant":
+        return _qdrant_storage()
     return _faiss_storage(persist_dir)
 
 
@@ -77,15 +75,20 @@ def load_index() -> Optional["VectorStoreIndex"]:
     from llama_index.core import load_index_from_storage, VectorStoreIndex
 
     configure_embedding_settings()
-    if cfg.vector_store == "chroma":
-        storage_ctx = _chroma_storage()
-        index = VectorStoreIndex.from_vector_store(storage_ctx.vector_store)
+    if cfg.vector_store == "qdrant":
+        from qdrant_client import QdrantClient
+        from qdrant_client.http.exceptions import UnexpectedResponse
 
-        # retorna None se a coleção estiver vazia (nenhum doc indexado ainda)
-        collection = getattr(storage_ctx.vector_store, "_collection", None)
-        if collection and collection.count() == 0:
+        client = QdrantClient(host=cfg.qdrant_host, port=cfg.qdrant_port)
+        try:
+            info = client.get_collection("acerola_rag")
+            if info.points_count == 0:
+                return None
+        except (UnexpectedResponse, Exception):
             return None
-        return index
+
+        storage_ctx = _qdrant_storage()
+        return VectorStoreIndex.from_vector_store(storage_ctx.vector_store)
 
     if not (cfg.persist_dir / "default__vector_store.json").exists():
         return None

@@ -1,28 +1,26 @@
-# Refatoração da Arquitetura de Prompt e Resposta (RAG)
+# Melhoria na Precisão de Busca e Recuperação (RAG)
 
 ## Objetivo
-Garantir 100% de confiabilidade no contrato entre Frontend e Backend (tags de resposta) e melhorar drasticamente a qualidade da formatação Markdown gerada pelo LLM usando as melhores práticas de mercado.
+Resolver as deficiências de contexto do assistente (como "Lost in the Middle" e recuperação de documentos semanticamente similares, mas não idênticos aos termos da busca, e.g., "Date" vs "Data Collection") melhorando a inteligência da etapa de *Retrieval*.
 
-## O Problema Atual
-Delegar a responsabilidade de estruturação de dados (envelopamento com `<ContentResponse>`) ao prompt do LLM é falho, pois os modelos de IA são probabilísticos e tendem a "esquecer" ou ignorar instruções quando o contexto da pergunta se torna complexo. Além disso, as instruções de formatação de sistema estão misturadas na pergunta do usuário (QA Template).
+## O Problema Atual (Diagnóstico)
+O sistema RAG está entregando material de baixa qualidade para a geração da resposta:
+1.  **Recuperação Puramente Vetorial:** Falha na busca por palavras-chave exatas (Keyword Search), o que é crítico ao buscar por código (`z.date()`).
+2.  **"Lost in the Middle":** A IA ignora pedaços vitais do contexto quando eles ficam no meio dos documentos retornados pelo *retriever*.
 
-## Plano de Ação (Checklist de Implementação)
+## Plano de Ação
 
-- [x] **1. Limpar o QA Template Atual**
-  - Arquivo: `backend/rag/engine.py`
-  - Remover a constante `_SYSTEM_PROMPT` e a interpolação que exige "ALWAYS USING MARKDOWN FORMATTING".
-  - Retornar o `PromptTemplate` do LlamaIndex para seu estado base (apenas recebendo o contexto e repassando a query do usuário).
+- [ ] **1. Ajustar Chunking**
+  - **Ação:** Revisar as constantes `chunk_size` e `chunk_overlap` (`backend/config.py`) em relação à densidade da documentação inserida (código vs. texto). Pedaços muito curtos perdem continuidade de código, pedaços muito longos causam "Lost in the Middle". (Avaliar *Semantic Chunking* como alternativa futura).
 
-- [x] **2. Garantir o Contrato de Tags XML Hardcoded**
-  - Arquivo: `backend/rag/engine.py`
-  - Na função `query(question: str)`, logo após a chamada `response = engine.query(question)`, aplicar hardcode da tag ao invés de confiar no LLM.
-  - Implementar retorno seguro: `return f"<ContentResponse>\n{str(response)}\n</ContentResponse>"`
+- [ ] **2. Implementar Busca Híbrida (Hybrid Search)**
+  - **Ação:** Configurar o *retriever* no `backend/rag/engine.py` (ou na pipeline de indexação) para usar tanto BM25 (busca lexical/por palavra-chave) quanto embeddings (busca semântica), caso o LlamaIndex suporte nativamente com o Chroma, ou fundi-los com um `QueryFusionRetriever`.
 
-- [x] **3. Implementar o Suporte a 'System Prompt' nos Clentes LLM**
-  - Arquivo: `backend/llm/client.py`
-  - Adicionar suporte formal à injeção de instruções de sistema (`role="system"`) nas classes `OpenAISDKLLM` e `AnthropicLLM`, alinhando a estrutura com as melhores arquiteturas (como ChatGPT e Claude).
-  - Atualizar os métodos `.complete()` e `.stream_complete()` para processar esse prompt antes do prompt de usuário.
+- [ ] **3. Implementar Re-Ranking (LongContextReorder)**
+  - **Ação:** Adicionar um pós-processador (Postprocessor) à *Query Engine* no `backend/rag/engine.py`. O `LongContextReorder` reorganiza os documentos recuperados colocando os mais relevantes no início e no final do contexto, contornando a "preguiça" natural dos LLMs (Lost in the Middle).
 
-- [x] **4. Configurar o System Prompt Oficial**
-  - Arquivo: `backend/rag/engine.py` (no método `_build_engine` ou similar).
-  - Passar uma instrução de sistema clara e robusta na inicialização do LLM (ex: `system_prompt="Você é um assistente técnico que responde estritamente usando Markdown rico (cabeçalhos, listas, blocos de código)."`).
+- [ ] **4. Redução/Ajuste de `similarity_top_k` e `response_mode`**
+  - **Ação:** Testar a combinação de retornar mais documentos (e.g., `top_k=5`) mas aplicar o modo `refine` (`response_mode="refine"`) para forçar a IA a iterar sobre cada documento. Alternativamente, manter um `top_k` menor (e.g., `3`) e usar o modo `compact` padrão se o Re-Ranking for suficiente.
+
+- [ ] **5. Testes de Casos Limites**
+  - **Ação:** Após as modificações, usar perguntas difíceis ("Quero exemplos de Zod para Date" ou nomes de variáveis específicos que se confundem semanticamente com palavras normais).

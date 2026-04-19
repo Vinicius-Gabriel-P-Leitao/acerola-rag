@@ -1,11 +1,12 @@
 services:
-  chroma:
-    image: chromadb/chroma:1.5.8
-    container_name: acerola-chroma
+  qdrant:
+    image: qdrant/qdrant:v1.17.0
+    container_name: acerola-qdrant
     ports:
-      - "8001:8000"
+      - "6333:6333"
+      - "6334:6334"
     volumes:
-      - chroma_data:/chroma/chroma
+      - qdrant_data:/qdrant/storage
     restart: unless-stopped
 
   api:
@@ -21,9 +22,9 @@ services:
     env_file:
       - ../.env
     depends_on:
-      - chroma
+      - qdrant
     restart: unless-stopped
 
 
 volumes:
-  chroma_data:
+  qdrant_data:

@@ -16,21 +16,26 @@ def _build_engine(index):
     from backend.llm.client import create_llm
 
     system_prompt = (
-        "Você é um assistente de documentação técnica. Sua única função é responder "
-        "perguntas usando o contexto fornecido, formatando a saída em Markdown rico e "
-        "bem espaçado.\n\n"
-        "REGRAS ESTRITAS DE FORMATAÇÃO:\n"
-        "1. Use Títulos e Subtítulos: Organize a resposta em seções lógicas usando "
-        "cabeçalhos (`## Título`, `### Subtítulo`).\n"
-        "2. Use Listas e Parágrafos Curtos: Para enumerar passos ou características, use listas (`- Item`). Mantenha os parágrafos curtos e diretos. Use negrito (`**texto**`) para destacar termos importantes.\n"
-        "3. Use Separadores Visuais: Utilize regras horizontais (`---`) para separar seções completamente distintas ou para criar uma pausa visual clara entre grandes blocos de texto.\n"
-        "4. Use Tabelas: Quando os dados forem comparativos ou tabulares (ex: parâmetros e descrições, opções e efeitos), formate-os como uma tabela Markdown.\n"
-        "5. SEMPRE use Blocos de Código: Qualquer trecho de código, comando, JSON, ou "
-        "texto que represente um arquivo de computador DEVE OBRIGATORIAMENTE estar "
-        "dentro de um bloco de código delimitado por ```. Especifique a linguagem "
-        "(ex: ```typescript, ```json, ```bash).\n"
-        "6. Seja Direto: Não use frases introdutórias como 'Aqui está a resposta:' ou "
-        "'Com base no contexto...'. Vá direto ao ponto."
+        "Você é um assistente de documentação técnica extremamente meticuloso. Sua "
+        "principal função é analisar **todo o contexto fornecido**, sem exceção, "
+        "antes de responder.\n\n"
+        "ESTRATÉGIA DE ANÁLISE E RESPOSTA:\n"
+        "1. LEIA TUDO PRIMEIRO: Antes de formular uma resposta, leia o contexto do "
+        "início ao fim. A resposta pode estar em um exemplo de código que não parece "
+        "diretamente relacionado.\n"
+        "2. PRIORIZE CÓDIGO: Encontre e apresente os exemplos de código mais relevantes "
+        "para a pergunta do usuário. Se não houver um exemplo exato, construa um com "
+        "base em padrões análogos encontrados no texto.\n"
+        "3. SEJA PRECISO: Baseie sua resposta estritamente no que está no contexto. "
+        "Apenas se a informação não puder ser encontrada ou inferida, afirme que o "
+        "conteúdo não foi localizado.\n\n"
+        "REGRAS DE FORMATAÇÃO:\n"
+        "- Use Títulos e Subtítulos (`##`, `###`).\n"
+        "- Use Listas (`-` ou `1.`) e parágrafos curtos.\n"
+        "- Use Separadores (`---`) para dividir seções longas.\n"
+        "- Use Tabelas Markdown quando a informação for comparativa.\n"
+        "- TODO código, comando ou JSON DEVE estar em um bloco de código (```linguagem).\n"
+        "- Não use saudações ou introduções como 'Aqui está a resposta:'."
     )
 
     Settings.llm = create_llm(
@@ -68,14 +73,17 @@ def _build_engine(index):
             Settings.callback_manager = CallbackManager([handler])
 
             return index.as_query_engine(
-                similarity_top_k=5,
+                similarity_top_k=3,
                 callback_manager=Settings.callback_manager,
                 text_qa_template=qa_prompt,
+                response_mode="refine",
             )
         except ImportError:
             pass
 
-    return index.as_query_engine(similarity_top_k=5, text_qa_template=qa_prompt)
+    return index.as_query_engine(
+        similarity_top_k=3, text_qa_template=qa_prompt, response_mode="refine"
+    )
 
 
 def get_engine() -> Optional["BaseQueryEngine"]:

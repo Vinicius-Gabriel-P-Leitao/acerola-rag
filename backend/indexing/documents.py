@@ -1,30 +1,47 @@
+import json
+
+from qdrant_client import QdrantClient
+from qdrant_client.models import Filter, FieldCondition, MatchValue, FilterSelector
+
 from backend.config import settings as cfg
 
 _COLLECTION_NAME = "acerola_rag"
 
 
-def _collection():
-    import chromadb
-
-    client = chromadb.HttpClient(host=cfg.chroma_host, port=cfg.chroma_port)
-    return client.get_or_create_collection(_COLLECTION_NAME)
+def _client() -> QdrantClient:
+    return QdrantClient(host=cfg.qdrant_host, port=cfg.qdrant_port)
 
 
 def list_documents(page: int = 1, page_size: int = 20, search: str = "") -> dict:
-    col = _collection()
-    result = col.get(include=["metadatas"])
+    client = _client()
+
+    try:
+        all_points = []
+        offset = None
+        while True:
+            results, offset = client.scroll(
+                collection_name=_COLLECTION_NAME,
+                with_payload=True,
+                with_vectors=False,
+                limit=100,
+                offset=offset,
+            )
+            all_points.extend(results)
+            if offset is None:
+                break
+    except Exception:
+        return {"total": 0, "items": []}
 
     seen: dict = {}
-    for meta in result.get("metadatas") or []:
-        if meta is None:
-            continue
-        src = meta.get("source", "")
+    for point in all_points:
+        payload = point.payload or {}
+        src = payload.get("source", "")
         if src and src not in seen:
-            seen[src] = meta
+            seen[src] = {k: v for k, v in payload.items() if not k.startswith("_")}
 
     if search:
-        searchLower = search.lower()
-        seen = {k: v for k, v in seen.items() if searchLower in k.lower()}
+        search_lower = search.lower()
+        seen = {k: v for k, v in seen.items() if search_lower in k.lower()}
 
     items = sorted(seen.values(), key=lambda m: m.get("uploaded_at", ""), reverse=True)
     total = len(items)
@@ -33,17 +50,56 @@ def list_documents(page: int = 1, page_size: int = 20, search: str = "") -> dict
 
 
 def get_document_content(source: str) -> str:
-    col = _collection()
-    result = col.get(where={"source": source}, include=["documents"])
-    docs = [d for d in (result.get("documents") or []) if d]
-    return "\n\n---\n\n".join(docs)
+    client = _client()
+
+    results, _ = client.scroll(
+        collection_name=_COLLECTION_NAME,
+        scroll_filter=Filter(
+            must=[FieldCondition(key="source", match=MatchValue(value=source))]
+        ),
+        with_payload=True,
+        with_vectors=False,
+        limit=1000,
+    )
+
+    texts = []
+    for point in results:
+        payload = point.payload or {}
+        node_content = payload.get("_node_content", "")
+        if node_content:
+            try:
+                node = json.loads(node_content)
+                text = node.get("text", "")
+                if text:
+                    texts.append(text)
+            except (json.JSONDecodeError, AttributeError):
+                pass
+
+    return "\n\n---\n\n".join(texts)
 
 
 def delete_document(source: str) -> int:
-    col = _collection()
-    result = col.get(where={"source": source}, include=[])
-    ids = result["ids"]
+    client = _client()
 
-    if ids:
-        col.delete(ids=ids)
-    return len(ids)
+    results, _ = client.scroll(
+        collection_name=_COLLECTION_NAME,
+        scroll_filter=Filter(
+            must=[FieldCondition(key="source", match=MatchValue(value=source))]
+        ),
+        with_payload=False,
+        with_vectors=False,
+        limit=10000,
+    )
+    count = len(results)
+
+    if count > 0:
+        client.delete(
+            collection_name=_COLLECTION_NAME,
+            points_selector=FilterSelector(
+                filter=Filter(
+                    must=[FieldCondition(key="source", match=MatchValue(value=source))]
+                )
+            ),
+        )
+
+    return count
