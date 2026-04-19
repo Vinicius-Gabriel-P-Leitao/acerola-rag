@@ -16,31 +16,34 @@ function createChatStore() {
 	const _store = writable<ChatState>({ messages: [], loading: false, error: null });
 
 	async function send(question: string) {
-		_store.update((s) => ({
-			...s,
-			messages: [...s.messages, { role: 'user', content: question }],
+		_store.update((store) => ({
+			...store,
+			messages: [...store.messages, { role: 'user', content: question }],
 			loading: true,
 			error: null
 		}));
-		_store.update((s) => ({
-			...s,
-			messages: [...s.messages, { role: 'assistant', content: '' }]
+
+		_store.update((store) => ({
+			...store,
+			messages: [...store.messages, { role: 'assistant', content: '' }]
 		}));
+
 		const idx = get(_store).messages.length - 1;
 
 		try {
 			const data = await api.post<{ answer: string }>('/query', { question });
-			_store.update((s) => {
-				const msgs = [...s.messages];
+			_store.update((store) => {
+				const msgs = [...store.messages];
 				msgs[idx] = { role: 'assistant', content: data.answer };
-				return { ...s, messages: msgs, loading: false };
+				return { ...store, messages: msgs, loading: false };
 			});
-		} catch (err: unknown) {
-			const msg = err instanceof Error ? err.message : 'Erro ao consultar a API';
-			_store.update((s) => {
-				const msgs = [...s.messages];
+		} catch (error: unknown) {
+			const msg = error instanceof Error ? error.message : 'Erro ao consultar a API';
+
+			_store.update((error) => {
+				const msgs = [...error.messages];
 				msgs[idx] = { role: 'assistant', content: `❌ ${msg}` };
-				return { ...s, messages: msgs, loading: false, error: msg };
+				return { ...error, messages: msgs, loading: false, error: msg };
 			});
 		}
 	}

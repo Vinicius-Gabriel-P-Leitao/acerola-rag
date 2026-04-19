@@ -24,11 +24,13 @@
 	let modelMenuOpen = $state(false);
 
 	const headerStore = useHeader();
-	headerStore.title = 'Chat';
+
 	headerStore.action = headerAction;
+	headerStore.title = 'Chat';
 
 	onMount(() => {
 		settingsStore.load();
+
 		return () => {
 			headerStore.action = null;
 		};
@@ -40,17 +42,20 @@
 	}
 
 	async function submit() {
-		const q = question.trim();
-		if (!q || chatStore.loading) return;
+		const query = question.trim();
+
+		if (!query || chatStore.loading) return;
 		question = '';
-		await chatStore.send(q);
+
+		await chatStore.send(query);
 		await scrollBottom();
+
 		if (chatStore.error) toast.error(chatStore.error);
 	}
 
-	function onKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
+	function onKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter' && !event.shiftKey) {
+			event.preventDefault();
 			submit();
 		}
 	}
@@ -61,9 +66,9 @@
 	}
 
 	const renderedMessages = $derived(
-		$chatStore.messages.map((m) => ({
-			...m,
-			html: m.role === 'assistant' ? marked.parse(m.content) : m.content
+		$chatStore.messages.map((message) => ({
+			...message,
+			html: message.role === 'assistant' ? marked.parse(message.content) : message.content
 		}))
 	);
 </script>

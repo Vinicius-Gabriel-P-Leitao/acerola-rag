@@ -4,6 +4,7 @@ import { api } from '$lib/api';
 export const PROVIDERS = ['openai', 'ollama', 'gemini', 'claude'] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
+// TODO: Referenciar o arquivo no backend que reforça isso, se o backend só tenta usar esse modelo é pura burrice, fortificar o backend
 export const PROVIDER_LABELS: Record<Provider, string> = {
 	openai: 'OpenAI',
 	ollama: 'Ollama (local)',
@@ -11,6 +12,7 @@ export const PROVIDER_LABELS: Record<Provider, string> = {
 	claude: 'Anthropic Claude'
 };
 
+// TODO: Referenciar o arquivo no backend que reforça isso, se o backend só tenta usar esse modelo é pura burrice, fortificar o backend
 export const PROVIDER_MODELS: Record<Provider, string[]> = {
 	openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'o3-mini'],
 	ollama: ['llama3.2', 'mistral', 'codellama', 'qwen2.5'],
@@ -28,8 +30,8 @@ interface SettingsState {
 
 function createSettingsStore() {
 	const _store = writable<SettingsState>({
-		provider: 'openai',
 		model: PROVIDER_MODELS.openai[0],
+		provider: 'openai',
 		configured: false,
 		loading: false,
 		error: null
@@ -41,9 +43,11 @@ function createSettingsStore() {
 			const data = await api.get<{ provider: Provider; model: string; configured: boolean }>(
 				'/settings'
 			);
+
 			const provider = data.provider ?? 'openai';
-			_store.update((s) => ({
-				...s,
+
+			_store.update((store) => ({
+				...store,
 				provider,
 				model: data.model ?? PROVIDER_MODELS[provider][0],
 				configured: data.configured,
@@ -51,19 +55,24 @@ function createSettingsStore() {
 				loading: false
 			}));
 		} catch {
-			_store.update((s) => ({ ...s, error: 'Falha ao carregar configurações', loading: false }));
+			_store.update((error) => ({
+				...error,
+				error: 'Falha ao carregar configurações',
+				loading: false
+			}));
 		}
 	}
 
 	async function apply(provider: Provider, model: string) {
-		_store.update((s) => ({ ...s, loading: true }));
+		_store.update((store) => ({ ...store, loading: true }));
+
 		try {
 			const data = await api.post<{ configured: boolean }>('/settings', {
 				llm_provider: provider,
 				llm_model: model
 			});
-			_store.update((s) => ({
-				...s,
+			_store.update((store) => ({
+				...store,
 				provider,
 				model,
 				configured: data.configured,
@@ -73,7 +82,11 @@ function createSettingsStore() {
 				loading: false
 			}));
 		} catch {
-			_store.update((s) => ({ ...s, error: 'Falha ao salvar configurações', loading: false }));
+			_store.update((error) => ({
+				...error,
+				error: 'Falha ao salvar configurações',
+				loading: false
+			}));
 		}
 	}
 

@@ -69,20 +69,24 @@
 		if (uploadFiles.length === 0) return;
 		try {
 			await documentsStore.uploadFiles(uploadFiles);
+
 			toast.success('Arquivos enviados para indexação');
 			uploadFiles = [];
+
 			if (fileInputEl) fileInputEl.value = '';
+
 			await documentsStore.fetchQueue();
 			selectedFilesOpen = false;
-		} catch (e) {
-			toast.error(e instanceof Error ? e.message : 'Erro no upload');
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Erro no upload');
 		}
 	}
 
 	function removeSelectedFile(fileToRemove: File) {
-		uploadFiles = uploadFiles.filter((f) => f !== fileToRemove);
+		uploadFiles = uploadFiles.filter((file) => file !== fileToRemove);
 		if (uploadFiles.length === 0) {
 			if (fileInputEl) fileInputEl.value = '';
+
 			selectedFilesOpen = false;
 		}
 	}
@@ -92,13 +96,15 @@
 			toast.error('Preencha o título e o conteúdo');
 			return;
 		}
+
 		try {
 			const result = await documentsStore.indexText(textTitle, textContent);
 			toast.success(`Job ${result.job_id} criado`);
+
 			textTitle = '';
 			textContent = '';
-		} catch (e) {
-			toast.error(e instanceof Error ? e.message : 'Erro ao indexar');
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : 'Erro ao indexar');
 		}
 	}
 
@@ -108,9 +114,10 @@
 	}
 
 	async function openViewer(source: string) {
-		viewOpen = true;
 		viewLoading = true;
+		viewOpen = true;
 		viewDoc = null;
+
 		try {
 			const content = await documentsStore.getContent(source);
 			viewDoc = { source, content };
@@ -125,9 +132,11 @@
 	async function confirmDelete() {
 		if (!deleteDoc) return;
 		deleteLoading = true;
+
 		try {
-			const n = await documentsStore.deleteDocument(deleteDoc.source);
-			toast.success(`${n} chunks removidos`);
+			const chunk = await documentsStore.deleteDocument(deleteDoc.source);
+			toast.success(`${chunk} chunks removidos`);
+
 			deleteOpen = false;
 			deleteDoc = null;
 		} catch {
@@ -147,8 +156,8 @@
 </script>
 
 <svelte:window
-	onkeydown={(e) => {
-		if (e.key === 'Escape' && viewOpen) viewOpen = false;
+	onkeydown={(event) => {
+		if (event.key === 'Escape' && viewOpen) viewOpen = false;
 	}}
 />
 
@@ -161,7 +170,7 @@
 		>
 			<h2 class="mb-1 font-semibold text-card-foreground">📤 Upload de documentos</h2>
 			<p class="mb-4 text-xs text-muted-foreground">
-				PDF, Word, TXT, Markdown — máximo 20 arquivos
+				PDF, Docx, TXT, Markdown — máximo 20 arquivos
 			</p>
 
 			<input

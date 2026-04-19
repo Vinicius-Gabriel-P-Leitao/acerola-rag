@@ -10,10 +10,10 @@ from backend.ingestion.loader import load_document
 def ingest_file(file_path: Path) -> VectorStoreIndex:
     doc = load_document(file_path)
     existing = load_index()
-    
+
     if existing is not None:
         existing.insert(doc)
-        
+
         if cfg.vector_store == "faiss":
             existing.storage_context.persist(persist_dir=str(cfg.persist_dir))
         return existing

@@ -8,6 +8,7 @@ function createMobileStore() {
 	function init() {
 		if (typeof window === 'undefined') return;
 		const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+
 		_store.set(mql.matches);
 		mql.addEventListener('change', (e) => _store.set(e.matches));
 	}

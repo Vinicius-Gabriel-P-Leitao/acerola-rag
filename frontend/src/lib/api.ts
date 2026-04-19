@@ -32,6 +32,7 @@ async function request<T>(
 		const text = await res.text().catch(() => res.statusText);
 		throw new ApiError(res.status, text);
 	}
+
 	return res.json() as Promise<T>;
 }
 
@@ -45,8 +46,8 @@ async function postForm<T>(path: string, form: FormData): Promise<T> {
 }
 
 export const api = {
-	get: <T>(path: string, params?: Record<string, string>) =>
-		request<T>('GET', path, undefined, params),
+	// prettier-ignore
+	get: <T>(path: string, params?: Record<string, string>) => request<T>('GET', path, undefined, params),
 	post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
 	delete: <T>(path: string) => request<T>('DELETE', path),
 	postForm

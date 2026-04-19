@@ -53,7 +53,7 @@ function createDocumentsStore() {
 	const _previousJobsStatus: Record<string, string> = {};
 
 	async function fetchPage() {
-		_store.update((s) => ({ ...s, loading: true, error: null }));
+		_store.update((store) => ({ ...store, loading: true, error: null }));
 		try {
 			const { page, pageSize, search } = get(_store);
 			const data = await api.get<DocumentsPage>('/documents', {
@@ -61,9 +61,18 @@ function createDocumentsStore() {
 				page_size: String(pageSize),
 				search
 			});
-			_store.update((s) => ({ ...s, total: data.total, items: data.items, loading: false }));
+			_store.update((store) => ({
+				...store,
+				total: data.total,
+				items: data.items,
+				loading: false
+			}));
 		} catch {
-			_store.update((s) => ({ ...s, error: 'Falha ao carregar documentos', loading: false }));
+			_store.update((error) => ({
+				...error,
+				error: 'Falha ao carregar documentos',
+				loading: false
+			}));
 		}
 	}
 
@@ -76,9 +85,12 @@ function createDocumentsStore() {
 			if (data?.jobs) {
 				data.jobs.forEach((job) => {
 					const prevStatus = _previousJobsStatus[job.job_id];
+
 					if (prevStatus && prevStatus !== 'done' && job.status === 'done') {
 						toast.success(`Arquivo processado: ${job.filename}`);
 						shouldRefreshPage = true;
+
+						// FIXME: Else if é debito tecnico, melhorar 
 					} else if (prevStatus && prevStatus !== 'error' && job.status === 'error') {
 						toast.error(`Erro ao processar arquivo: ${job.filename}`);
 					}
