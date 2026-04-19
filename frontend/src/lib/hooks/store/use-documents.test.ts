@@ -20,8 +20,20 @@ describe('documentsStore', () => {
 		vi.mocked(api.get).mockResolvedValueOnce({
 			total: 2,
 			items: [
-				{ source: 'doc1.pdf', file_type: 'pdf', file_size_bytes: 1024, uploaded_at: '2025-01-01T00:00:00', word_count: 500 },
-				{ source: 'doc2.txt', file_type: 'text', file_size_bytes: 512, uploaded_at: '2025-01-02T00:00:00', word_count: 100 }
+				{
+					source: 'doc1.pdf',
+					file_type: 'pdf',
+					file_size_bytes: 1024,
+					uploaded_at: '2025-01-01T00:00:00',
+					word_count: 500
+				},
+				{
+					source: 'doc2.txt',
+					file_type: 'text',
+					file_size_bytes: 512,
+					uploaded_at: '2025-01-02T00:00:00',
+					word_count: 100
+				}
 			]
 		});
 

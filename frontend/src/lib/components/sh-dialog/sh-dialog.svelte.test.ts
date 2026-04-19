@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ShDialog from './sh-dialog.svelte';
-import ShDialogContent from './sh-dialog-content.svelte';
 import ShDialogHeader from './sh-dialog-header.svelte';
 import ShDialogFooter from './sh-dialog-footer.svelte';
 import ShDialogTitle from './sh-dialog-title.svelte';

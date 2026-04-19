@@ -1,4 +1,5 @@
 import { writable, get, derived } from 'svelte/store';
+import { toast } from 'svelte-sonner';
 import { api } from '$lib/api';
 
 export interface DocumentMeta {
@@ -48,6 +49,9 @@ function createDocumentsStore() {
 
 	const _totalPages = derived(_store, (s) => Math.max(1, Math.ceil(s.total / s.pageSize)));
 
+	// WARN: É recomendado utilizar Webhooks ou Server-Sent Events (SSE) / WebSockets vindo do backend para ouvir a finalização dos jobs em vez de polling local.
+	const _previousJobsStatus: Record<string, string> = {};
+
 	async function fetchPage() {
 		_store.update((s) => ({ ...s, loading: true, error: null }));
 		try {
@@ -66,7 +70,27 @@ function createDocumentsStore() {
 	async function fetchQueue() {
 		try {
 			const data = await api.get<{ jobs: QueueJob[] }>('/upload/status');
-			_store.update((s) => ({ ...s, jobs: data.jobs }));
+
+			// Handle diffing to trigger notifications and auto-refresh page
+			let shouldRefreshPage = false;
+			if (data?.jobs) {
+				data.jobs.forEach((job) => {
+					const prevStatus = _previousJobsStatus[job.job_id];
+					if (prevStatus && prevStatus !== 'done' && job.status === 'done') {
+						toast.success(`Arquivo processado: ${job.filename}`);
+						shouldRefreshPage = true;
+					} else if (prevStatus && prevStatus !== 'error' && job.status === 'error') {
+						toast.error(`Erro ao processar arquivo: ${job.filename}`);
+					}
+					_previousJobsStatus[job.job_id] = job.status;
+				});
+			}
+
+			_store.update((s) => ({ ...s, jobs: data?.jobs || [] }));
+
+			if (shouldRefreshPage) {
+				await fetchPage();
+			}
 		} catch {
 			// silently ignore queue errors
 		}

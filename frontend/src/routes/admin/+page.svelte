@@ -3,6 +3,7 @@
 	import { fly, fade } from 'svelte/transition';
 	import { toast } from 'svelte-sonner';
 	import { documentsStore, type DocumentMeta } from '$lib/hooks/store/use-documents.hook';
+	import { useHeader } from '$lib/hooks/ui/use-header.svelte';
 	import ShButton from '$lib/components/sh-button/sh-button.svelte';
 	import ShInput from '$lib/components/sh-input/sh-input.svelte';
 	import ShTextarea from '$lib/components/sh-textarea/sh-textarea.svelte';
@@ -19,11 +20,13 @@
 	import ShPaginationItem from '$lib/components/sh-pagination/sh-pagination-item.svelte';
 	import ShPaginationPrevious from '$lib/components/sh-pagination/sh-pagination-previous.svelte';
 	import ShPaginationNext from '$lib/components/sh-pagination/sh-pagination-next.svelte';
+	import ShPaginationLink from '$lib/components/sh-pagination/sh-pagination-link.svelte';
 	import UploadIcon from '@lucide/svelte/icons/upload';
 	import TrashIcon from '@lucide/svelte/icons/trash-2';
 	import EyeIcon from '@lucide/svelte/icons/eye';
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
 	import XIcon from '@lucide/svelte/icons/x';
+	import ListIcon from '@lucide/svelte/icons/list';
 
 	const QUEUE_ICONS: Record<string, string> = {
 		pending: '⏳',
@@ -32,7 +35,7 @@
 		error: '❌'
 	};
 
-	let uploadFiles = $state<FileList | null>(null);
+	let uploadFiles = $state<File[]>([]);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 	let textTitle = $state('');
 	let textContent = $state('');
@@ -47,25 +50,40 @@
 	let deleteOpen = $state(false);
 	let deleteLoading = $state(false);
 
+	let selectedFilesOpen = $state(false);
+	let queueOpen = $state(false);
+
 	let queueInterval: ReturnType<typeof setInterval>;
 
-	onMount(async () => {
-		await documentsStore.fetchPage();
-		await documentsStore.fetchQueue();
+	const headerStore = useHeader();
+	headerStore.title = 'Admin';
+
+	onMount(() => {
+		documentsStore.fetchPage();
+		documentsStore.fetchQueue();
 		queueInterval = setInterval(documentsStore.fetchQueue, 3000);
 		return () => clearInterval(queueInterval);
 	});
 
 	async function handleUpload() {
-		if (!uploadFiles?.length) return;
+		if (uploadFiles.length === 0) return;
 		try {
-			await documentsStore.uploadFiles(Array.from(uploadFiles));
+			await documentsStore.uploadFiles(uploadFiles);
 			toast.success('Arquivos enviados para indexação');
-			uploadFiles = null;
+			uploadFiles = [];
 			if (fileInputEl) fileInputEl.value = '';
 			await documentsStore.fetchQueue();
+			selectedFilesOpen = false;
 		} catch (e) {
 			toast.error(e instanceof Error ? e.message : 'Erro no upload');
+		}
+	}
+
+	function removeSelectedFile(fileToRemove: File) {
+		uploadFiles = uploadFiles.filter((f) => f !== fileToRemove);
+		if (uploadFiles.length === 0) {
+			if (fileInputEl) fileInputEl.value = '';
+			selectedFilesOpen = false;
 		}
 	}
 
@@ -128,19 +146,23 @@
 	}
 </script>
 
-<div class="flex h-full flex-col overflow-y-auto">
-	<header
-		class="border-border bg-background flex h-14 shrink-0 items-center border-b px-4"
-		style="box-shadow: var(--shadow-header);"
-	>
-		<span class="font-semibold">Admin</span>
-	</header>
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape' && viewOpen) viewOpen = false;
+	}}
+/>
 
-	<div class="flex flex-col gap-6 p-4">
+<div class="flex h-full flex-col overflow-y-auto">
+	<div class="mx-auto flex w-full max-w-[60%] min-w-80 flex-col gap-6 p-4">
 		<!-- Upload -->
-		<section class="border-border bg-card rounded-xl border p-4" style="box-shadow: var(--shadow-soft-card);">
-			<h2 class="text-card-foreground mb-1 font-semibold">📤 Upload de documentos</h2>
-			<p class="text-muted-foreground mb-4 text-xs">PDF, Word, TXT, Markdown — máximo 20 arquivos</p>
+		<section
+			class="rounded-xl border border-border bg-card p-4"
+			style="box-shadow: var(--shadow-soft-card);"
+		>
+			<h2 class="mb-1 font-semibold text-card-foreground">📤 Upload de documentos</h2>
+			<p class="mb-4 text-xs text-muted-foreground">
+				PDF, Word, TXT, Markdown — máximo 20 arquivos
+			</p>
 
 			<input
 				bind:this={fileInputEl}
@@ -148,25 +170,34 @@
 				accept=".pdf,.docx,.doc,.txt,.md"
 				multiple
 				class="hidden"
-				onchange={(e) => (uploadFiles = (e.target as HTMLInputElement).files)}
+				onchange={(e) => {
+					const files = (e.target as HTMLInputElement).files;
+					uploadFiles = files ? Array.from(files) : [];
+				}}
 			/>
 
 			<!-- Drop zone -->
 			<button
 				type="button"
 				onclick={() => fileInputEl?.click()}
-				class="border-border hover:border-primary hover:bg-primary/5 flex w-full cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 transition-colors"
+				class="flex w-full cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-border px-4 py-6 transition-colors hover:border-primary hover:bg-primary/5"
 			>
-				<UploadIcon class="text-muted-foreground size-8" />
+				<UploadIcon class="size-8 text-muted-foreground" />
 				<span class="text-sm font-medium">Clique para selecionar arquivos</span>
-				<span class="text-muted-foreground text-xs">ou arraste aqui</span>
+				<span class="text-xs text-muted-foreground">ou arraste aqui</span>
 			</button>
 
-			{#if uploadFiles?.length}
+			{#if uploadFiles.length > 0}
 				<div class="mt-3 flex items-center justify-between">
-					<span class="text-muted-foreground text-sm">
-						{uploadFiles.length} arquivo(s) selecionado(s)
-					</span>
+					<ShButton
+						variant="outline"
+						size="sm"
+						class="gap-2"
+						onclick={() => (selectedFilesOpen = true)}
+					>
+						<ListIcon class="size-4" />
+						Ver arquivos selecionados ({uploadFiles.length})
+					</ShButton>
 					<ShButton onclick={handleUpload} size="sm" class="gap-2">
 						<UploadIcon class="size-4" />
 						Enviar
@@ -175,26 +206,28 @@
 			{/if}
 
 			{#if $documentsStore.jobs.length > 0}
-				<div class="mt-4">
-					<p class="text-muted-foreground mb-2 text-xs font-medium">Fila de indexação</p>
-					{#each $documentsStore.jobs as job}
-						<p class="text-muted-foreground text-xs">
-							{QUEUE_ICONS[job.status] ?? '•'}
-							<code>{job.job_id.slice(0, 8)}</code> — {job.filename} ({job.status})
-							{#if job.error}<span class="text-destructive"> ↳ {job.error}</span>{/if}
-						</p>
-					{/each}
+				<div class="mt-4 flex items-center justify-between">
+					<p class="text-sm font-medium text-muted-foreground">
+						{$documentsStore.jobs.length} arquivo(s) na fila de processamento
+					</p>
+					<ShButton variant="outline" size="sm" class="gap-2" onclick={() => (queueOpen = true)}>
+						<ListIcon class="size-4" />
+						Ver fila de processos
+					</ShButton>
 				</div>
 			{/if}
 		</section>
 
 		<!-- Index text -->
-		<section class="border-border bg-card rounded-xl border p-4" style="box-shadow: var(--shadow-soft-card);">
-			<h2 class="text-card-foreground mb-3 font-semibold">📝 Indexar texto puro</h2>
+		<section
+			class="rounded-xl border border-border bg-card p-4"
+			style="box-shadow: var(--shadow-soft-card);"
+		>
+			<h2 class="mb-3 font-semibold text-card-foreground">📝 Indexar texto puro</h2>
 			<div class="flex flex-col gap-2">
 				<ShInput bind:value={textTitle} placeholder="Título / nome do documento" />
 				<ShTextarea bind:value={textContent} placeholder="Cole aqui o texto…" rows={4} />
-				<ShButton onclick={handleIndexText} size="sm" class="self-start gap-2">
+				<ShButton onclick={handleIndexText} size="sm" class="gap-2 self-start">
 					<FileTextIcon class="size-4" />
 					Indexar texto
 				</ShButton>
@@ -202,8 +235,11 @@
 		</section>
 
 		<!-- Documents list -->
-		<section class="border-border bg-card rounded-xl border p-4" style="box-shadow: var(--shadow-soft-card);">
-			<h2 class="text-card-foreground mb-3 font-semibold">📚 Documentos indexados</h2>
+		<section
+			class="rounded-xl border border-border bg-card p-4"
+			style="box-shadow: var(--shadow-soft-card);"
+		>
+			<h2 class="mb-3 font-semibold text-card-foreground">📚 Documentos indexados</h2>
 
 			<ShInput
 				class="mb-3"
@@ -212,28 +248,30 @@
 				oninput={onSearchInput}
 			/>
 
-			{#if $documentsStore.loading}
+			{#if $documentsStore.loading && $documentsStore.items.length === 0}
 				<div class="flex flex-col gap-2">
-					{#each { length: 3 } as _}
+					{#each { length: 3 } as _, i (i)}
 						<ShSkeleton class="h-10 w-full" />
 					{/each}
 				</div>
 			{:else if $documentsStore.error}
-				<p class="text-destructive text-sm">{$documentsStore.error}</p>
+				<p class="text-sm text-destructive">{$documentsStore.error}</p>
 			{:else if $documentsStore.items.length === 0}
-				<p class="text-muted-foreground text-sm">Nenhum documento encontrado.</p>
+				<p class="text-sm text-muted-foreground">Nenhum documento encontrado.</p>
 			{:else}
-				<p class="text-muted-foreground mb-2 text-xs">
-					{$documentsStore.total} documento(s) — página {$documentsStore.page}/{$documentsStore.totalPages}
+				<p class="mb-2 text-xs text-muted-foreground">
+					{$documentsStore.total} documento(s) — página {$documentsStore.page}/{documentsStore.totalPages}
 				</p>
 
 				<div class="flex flex-col divide-y">
-					{#each $documentsStore.items as doc}
+					{#each $documentsStore.items as doc (doc.source)}
 						<div class="flex items-center gap-2 py-2.5">
 							<div class="min-w-0 flex-1">
-								<p class="text-foreground truncate text-sm font-medium">{doc.source}</p>
-								<p class="text-muted-foreground text-xs">
-									{doc.file_type} · {formatSize(doc.file_size_bytes)} · {doc.word_count} palavras · {formatDate(doc.uploaded_at)}
+								<p class="truncate text-sm font-medium text-foreground">{doc.source}</p>
+								<p class="text-xs text-muted-foreground">
+									{doc.file_type} · {formatSize(doc.file_size_bytes)} · {doc.word_count} palavras · {formatDate(
+										doc.uploaded_at
+									)}
 								</p>
 							</div>
 							<ShButton
@@ -248,7 +286,10 @@
 								variant="ghost"
 								size="icon-sm"
 								class="text-destructive hover:text-destructive"
-								onclick={() => { deleteDoc = doc; deleteOpen = true; }}
+								onclick={() => {
+									deleteDoc = doc;
+									deleteOpen = true;
+								}}
 								title="Deletar"
 							>
 								<TrashIcon class="size-4" />
@@ -257,20 +298,41 @@
 					{/each}
 				</div>
 
-				{#if $documentsStore.totalPages > 1}
+				{#if documentsStore.totalPages > 1}
 					<div class="mt-4">
-						<ShPagination>
+						<ShPagination
+							count={$documentsStore.total}
+							perPage={$documentsStore.pageSize}
+							page={$documentsStore.page}
+						>
 							<ShPaginationContent>
 								<ShPaginationItem>
 									<ShPaginationPrevious
+										page={{ type: 'page', value: $documentsStore.page - 1 }}
+										isActive={false}
 										onclick={() => documentsStore.setPage($documentsStore.page - 1)}
 										class={$documentsStore.page <= 1 ? 'pointer-events-none opacity-50' : ''}
 									/>
 								</ShPaginationItem>
+								{#each Array(documentsStore.totalPages) as _, i (i)}
+									<ShPaginationItem>
+										<ShPaginationLink
+											page={{ type: 'page', value: i + 1 }}
+											isActive={$documentsStore.page === i + 1}
+											onclick={() => documentsStore.setPage(i + 1)}
+										>
+											{i + 1}
+										</ShPaginationLink>
+									</ShPaginationItem>
+								{/each}
 								<ShPaginationItem>
 									<ShPaginationNext
+										page={{ type: 'page', value: $documentsStore.page + 1 }}
+										isActive={false}
 										onclick={() => documentsStore.setPage($documentsStore.page + 1)}
-										class={$documentsStore.page >= $documentsStore.totalPages ? 'pointer-events-none opacity-50' : ''}
+										class={$documentsStore.page >= documentsStore.totalPages
+											? 'pointer-events-none opacity-50'
+											: ''}
 									/>
 								</ShPaginationItem>
 							</ShPaginationContent>
@@ -294,15 +356,18 @@
 
 	<!-- Mobile: bottom sheet -->
 	<div
-		class="bg-card fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-2xl md:hidden"
+		class="fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-2xl bg-card md:hidden"
 		transition:fly={{ y: 400, duration: 250 }}
 	>
 		<div class="flex items-center justify-between border-b px-4 py-3">
 			<div>
 				<p class="font-semibold">Conteúdo do documento</p>
-				{#if viewDoc}<p class="text-muted-foreground truncate text-xs">{viewDoc.source}</p>{/if}
+				{#if viewDoc}<p class="truncate text-xs text-muted-foreground">{viewDoc.source}</p>{/if}
 			</div>
-			<button onclick={() => (viewOpen = false)} class="text-muted-foreground hover:text-foreground">
+			<button
+				onclick={() => (viewOpen = false)}
+				class="text-muted-foreground hover:text-foreground"
+			>
 				<XIcon class="size-5" />
 			</button>
 		</div>
@@ -312,7 +377,7 @@
 			{:else if viewDoc}
 				<textarea
 					readonly
-					class="border-input bg-muted text-foreground h-full min-h-64 w-full rounded-md border p-3 font-mono text-xs"
+					class="h-full min-h-[50vh] w-full resize-none rounded-md border border-input bg-muted p-3 font-mono text-xs text-foreground"
 					value={viewDoc.content}
 				></textarea>
 			{/if}
@@ -325,15 +390,18 @@
 		transition:fade={{ duration: 150 }}
 	>
 		<div
-			class="bg-card border-border flex h-[80vh] w-full max-w-4xl flex-col rounded-xl border shadow-xl"
+			class="flex h-[80vh] w-full max-w-4xl flex-col rounded-xl border border-border bg-card shadow-xl"
 			transition:fly={{ y: -16, duration: 200 }}
 		>
-			<div class="border-border flex items-center justify-between border-b px-6 py-4">
+			<div class="flex items-center justify-between border-b border-border px-6 py-4">
 				<div>
 					<p class="font-semibold">Conteúdo do documento</p>
-					{#if viewDoc}<p class="text-muted-foreground truncate text-sm">{viewDoc.source}</p>{/if}
+					{#if viewDoc}<p class="truncate text-sm text-muted-foreground">{viewDoc.source}</p>{/if}
 				</div>
-				<button onclick={() => (viewOpen = false)} class="text-muted-foreground hover:text-foreground">
+				<button
+					onclick={() => (viewOpen = false)}
+					class="text-muted-foreground hover:text-foreground"
+				>
 					<XIcon class="size-5" />
 				</button>
 			</div>
@@ -343,7 +411,7 @@
 				{:else if viewDoc}
 					<textarea
 						readonly
-						class="border-input bg-muted text-foreground h-full w-full rounded-md border p-4 font-mono text-sm"
+						class="h-full min-h-[60vh] w-full resize-none rounded-md border border-input bg-muted p-4 font-mono text-sm text-foreground"
 						value={viewDoc.content}
 					></textarea>
 				{/if}
@@ -358,8 +426,7 @@
 		<ShDialogHeader>
 			<ShDialogTitle>Confirmar exclusão</ShDialogTitle>
 			<ShDialogDescription>
-				Deletar <strong>{deleteDoc?.source}</strong> e todos os seus chunks? Esta ação não pode ser
-				desfeita.
+				Deletar <strong>{deleteDoc?.source}</strong> e todos os seus chunks? Esta ação não pode ser desfeita.
 			</ShDialogDescription>
 		</ShDialogHeader>
 		<ShDialogFooter>
@@ -368,6 +435,77 @@
 				{#if deleteLoading}<ShSpinner class="mr-2 size-4" />{/if}
 				Deletar
 			</ShButton>
+		</ShDialogFooter>
+	</ShDialogContent>
+</ShDialog>
+
+<!-- Selected Files Dialog -->
+<ShDialog bind:open={selectedFilesOpen}>
+	<ShDialogContent>
+		<ShDialogHeader>
+			<ShDialogTitle>Arquivos Selecionados</ShDialogTitle>
+			<ShDialogDescription>Lista de arquivos prontos para envio.</ShDialogDescription>
+		</ShDialogHeader>
+		<div class="max-h-[60vh] overflow-y-auto pr-4">
+			{#if uploadFiles.length > 0}
+				<div class="flex flex-col gap-2">
+					{#each uploadFiles as file (file.name)}
+						<div class="flex items-center justify-between border-b pb-2">
+							<div class="flex flex-col">
+								<span class="text-sm font-medium">{file.name}</span>
+								<span class="text-xs text-muted-foreground">{formatSize(file.size)}</span>
+							</div>
+							<ShButton
+								variant="ghost"
+								size="icon-sm"
+								class="shrink-0 text-destructive hover:text-destructive"
+								onclick={() => removeSelectedFile(file)}
+							>
+								<TrashIcon class="size-4" />
+							</ShButton>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+		<ShDialogFooter>
+			<ShButton variant="outline" onclick={() => (selectedFilesOpen = false)}>Fechar</ShButton>
+		</ShDialogFooter>
+	</ShDialogContent>
+</ShDialog>
+
+<!-- Queue Dialog -->
+<ShDialog bind:open={queueOpen}>
+	<ShDialogContent class="sm:max-w-3xl">
+		<ShDialogHeader>
+			<ShDialogTitle>Fila de Processamento</ShDialogTitle>
+			<ShDialogDescription>Acompanhe o status dos arquivos na fila.</ShDialogDescription>
+		</ShDialogHeader>
+		<div class="max-h-[60vh] overflow-y-auto pr-4">
+			<div class="flex flex-col gap-3">
+				{#each $documentsStore.jobs as job (job.job_id)}
+					<div class="flex flex-col border-b pb-2">
+						<div class="flex items-center justify-between">
+							<span class="truncate pr-4 text-sm font-medium">{job.filename}</span>
+							<span class="flex shrink-0 items-center gap-1 text-xs">
+								{QUEUE_ICONS[job.status] ?? '•'}
+								{job.status}
+							</span>
+						</div>
+						<div class="mt-1 text-xs text-muted-foreground">
+							Job ID: <code>{job.job_id.slice(0, 8)}</code>
+						</div>
+						{#if job.error}
+							<div class="mt-1 text-xs text-destructive">
+								Erro: {job.error}
+							</div>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</div>
+		<ShDialogFooter>
+			<ShButton variant="outline" onclick={() => (queueOpen = false)}>Fechar</ShButton>
 		</ShDialogFooter>
 	</ShDialogContent>
 </ShDialog>

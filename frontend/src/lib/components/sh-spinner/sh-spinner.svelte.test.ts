@@ -15,10 +15,9 @@ describe('ShSpinner', () => {
 
 	it('forwards custom aria-label', async () => {
 		const screen = render(ShSpinner, { 'aria-label': 'Carregando dados' });
-		await expect.element(screen.getByRole('status')).toHaveAttribute(
-			'aria-label',
-			'Carregando dados'
-		);
+		await expect
+			.element(screen.getByRole('status'))
+			.toHaveAttribute('aria-label', 'Carregando dados');
 	});
 
 	it('forwards class prop via cn', async () => {

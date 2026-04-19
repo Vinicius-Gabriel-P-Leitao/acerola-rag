@@ -3,11 +3,7 @@
 	import { cn } from '$lib/utils';
 	import type { ComponentProps } from 'svelte';
 
-	let {
-		class: className,
-		children,
-		...restProps
-	}: ComponentProps<typeof DialogHeader> = $props();
+	let { class: className, children, ...restProps }: ComponentProps<typeof DialogHeader> = $props();
 </script>
 
 <DialogHeader class={cn(className)} {...restProps}>
