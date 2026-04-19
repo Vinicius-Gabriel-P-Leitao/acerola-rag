@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     api_url: str = "http://localhost:8000/api/v1"
     debug: bool = False
 
-    # ── Langfuse (lidos do .env — deixe em branco para desabilitar) ───────────
+    # ── Langfuse (lidos do .env — deixe as chaves em branco para desabilitar) ───
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
     langfuse_base_url: str = "https://cloud.langfuse.com"

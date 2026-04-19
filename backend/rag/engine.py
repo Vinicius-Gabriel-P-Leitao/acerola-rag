@@ -8,6 +8,7 @@ from backend.rag.pipeline import get_or_create_index
 
 _sessions: dict[str, "BaseChatEngine"] = {}
 _index = None
+_langfuse = None
 
 
 def _get_index():
@@ -18,6 +19,8 @@ def _get_index():
 
 
 def _build_engine():
+    global _langfuse
+
     from llama_index.core import Settings
     from llama_index.core.chat_engine import CondensePlusContextChatEngine
     from llama_index.core.memory import ChatMemoryBuffer
@@ -45,7 +48,9 @@ def _build_engine():
         "- Use Listas (`-` ou `1.`) e parágrafos curtos.\n"
         "- Use Separadores (`---`) para dividir seções longas.\n"
         "- Use Tabelas Markdown quando a informação for comparativa.\n"
-        "- TODO código, comando ou JSON DEVE estar em um bloco de código (```linguagem).\n"
+        "- TODO código, comando ou JSON DEVE estar em um bloco de código (```linguagem). "
+        "Isso inclui código que apareça no contexto SEM formatação: identifique-o e "
+        "envolva-o em ``` antes de apresentar. NUNCA exiba código como texto puro.\n"
         "- Não use saudações ou introduções como 'Aqui está a resposta:'."
     )
 
@@ -69,16 +74,17 @@ def _build_engine():
 
     if cfg.langfuse_public_key and cfg.langfuse_secret_key:
         try:
-            from langfuse.llama_index import LlamaIndexCallbackHandler  # type: ignore
-            from llama_index.core.callbacks import CallbackManager
+            import os
+            from langfuse import get_client  # type: ignore
+            from openinference.instrumentation.llama_index import LlamaIndexInstrumentor  # type: ignore
 
-            handler = LlamaIndexCallbackHandler(
-                public_key=cfg.langfuse_public_key,
-                secret_key=cfg.langfuse_secret_key,
-                host=cfg.langfuse_base_url,
-            )
-            Settings.callback_manager = CallbackManager([handler])
-        except ImportError:
+            os.environ["LANGFUSE_PUBLIC_KEY"] = cfg.langfuse_public_key
+            os.environ["LANGFUSE_SECRET_KEY"] = cfg.langfuse_secret_key
+            os.environ["LANGFUSE_BASE_URL"] = cfg.langfuse_base_url or "https://cloud.langfuse.com"
+
+            LlamaIndexInstrumentor().instrument()
+            _langfuse = get_client()
+        except Exception:
             pass
 
     return CondensePlusContextChatEngine.from_defaults(
@@ -112,4 +118,9 @@ def query(question: str, session_id: str = "default") -> str:
     if engine is None:
         return "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro."
     response = engine.chat(question)
+    if _langfuse is not None:
+        try:
+            _langfuse.flush()
+        except Exception:
+            pass
     return f"<ContentResponse>\n{str(response)}\n</ContentResponse>"

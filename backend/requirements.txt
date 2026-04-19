@@ -22,7 +22,8 @@ fastembed>=0.3.0
 sentence-transformers>=3.0.0
 
 # Observabilidade
-langfuse>=2.0.0
+langfuse>=3.0.0
+openinference-instrumentation-llama-index>=3.0.0
 
 # API
 fastapi>=0.111.0
