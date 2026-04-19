@@ -176,7 +176,7 @@
 	</div>
 {/snippet}
 
-<div class="flex h-full flex-col">
+<div class="flex flex-1 flex-col overflow-hidden">
 	{#if !$settingsStore.configured && !$settingsStore.loading}
 		<div
 			class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-300"
@@ -186,8 +186,8 @@
 	{/if}
 
 	<!-- Messages -->
-	<div bind:this={messagesEl} class="flex-1 overflow-y-auto py-6">
-		<div class="mx-auto w-full max-w-[50%] min-w-80 px-4">
+	<div bind:this={messagesEl} class="flex-1 overflow-x-hidden overflow-y-auto py-6">
+		<div class="mx-auto w-full max-w-full md:max-w-[50%] min-w-0 md:min-w-80 px-4 box-border">
 			{#if renderedMessages.length === 0}
 				<div class="flex flex-col items-center justify-center gap-2 pt-20 text-muted-foreground">
 					<BotIcon class="size-10 opacity-30" />
@@ -232,8 +232,8 @@
 	</div>
 
 	<!-- Input area -->
-	<div class="border-t border-border bg-background py-3">
-		<div class="mx-auto flex w-full max-w-[50%] min-w-80 items-end gap-2 px-4">
+	<div class="border-t border-border bg-background py-3 shrink-0">
+		<div class="mx-auto flex w-full max-w-full md:max-w-[50%] min-w-0 md:min-w-80 items-end gap-2 px-4">
 			<ShTextarea
 				bind:element={textareaEl}
 				class="max-h-[35vh] min-h-10 flex-1 resize-none"

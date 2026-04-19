@@ -26,7 +26,7 @@
 	});
 </script>
 
-<div class="flex h-screen overflow-hidden">
+<div class="flex h-[100dvh] overflow-hidden">
 	<!-- Sidebar — desktop only -->
 	<aside
 		class="hidden w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex"
@@ -67,7 +67,7 @@
 			</div>
 		</header>
 
-		<main class="flex min-w-0 flex-1 flex-col overflow-hidden pb-14 md:pb-0">
+		<main class="flex min-w-0 flex-1 flex-col overflow-hidden pb-[56px] md:pb-0">
 			{@render children()}
 		</main>
 	</div>
