@@ -7,12 +7,12 @@ import ShPaginationEllipsis from './sh-pagination-ellipsis.svelte';
 
 describe('ShPagination', () => {
 	it('renders a nav element', async () => {
-		const screen = render(ShPagination);
+		const screen = render(ShPagination, { count: 0 });
 		await expect.element(screen.getByRole('navigation')).toBeInTheDocument();
 	});
 
 	it('forwards class prop via cn', async () => {
-		const { container } = render(ShPagination, { class: 'pagination-class' });
+		const { container } = render(ShPagination, { count: 0, class: 'pagination-class' });
 		expect(container.querySelector('.pagination-class')).not.toBeNull();
 	});
 });

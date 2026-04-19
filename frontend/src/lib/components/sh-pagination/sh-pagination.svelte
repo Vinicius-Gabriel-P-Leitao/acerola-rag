@@ -3,9 +3,7 @@
 	import { cn } from '$lib/utils';
 	import type { ComponentProps } from 'svelte';
 
-	let { class: className, children, ...restProps }: ComponentProps<typeof Pagination> = $props();
+	let { class: className, ...restProps }: ComponentProps<typeof Pagination> = $props();
 </script>
 
-<Pagination class={cn(className)} {...restProps}>
-	{#if children}{@render children()}{/if}
-</Pagination>
+<Pagination class={cn(className)} {...restProps} />
