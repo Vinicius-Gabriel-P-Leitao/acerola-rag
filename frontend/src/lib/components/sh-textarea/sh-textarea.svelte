@@ -5,10 +5,10 @@
 
 	let {
 		class: className,
-		ref = $bindable(null),
+		element = $bindable(null),
 		value = $bindable(),
 		...restProps
-	}: ComponentProps<typeof Textarea> = $props();
+	}: ComponentProps<typeof Textarea> & { element?: HTMLTextAreaElement | null } = $props();
 </script>
 
-<Textarea bind:ref bind:value class={cn(className)} {...restProps} />
+<Textarea bind:ref={element} bind:value class={cn(className)} {...restProps} />

@@ -170,3 +170,20 @@
 ::-webkit-scrollbar-thumb:hover {
 	@apply bg-muted-foreground/50;
 }
+
+/* Custom Prose Styles for Chat Output */
+.prose {
+	/* Aumenta o espaço entre parágrafos e listas */
+	:where(p, ul, ol) {
+		@apply my-4;
+	}
+	/* Aumenta o espaço para títulos */
+	:where(h1, h2, h3, h4) {
+		@apply my-6;
+	}
+	/* Garante espaço consistente para blocos de código */
+	:where(div.code-block) {
+		@apply my-6;
+	}
+}
+
