@@ -46,7 +46,10 @@ if _FRONTEND_BUILD.exists():
     app.mount("/_app", StaticFiles(directory=str(_FRONTEND_BUILD / "_app")), name="assets")
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    async def serve_spa():
+    async def serve_spa(full_path: str):
+        file_path = _FRONTEND_BUILD / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
         return FileResponse(str(_FRONTEND_BUILD / "index.html"))
 
 

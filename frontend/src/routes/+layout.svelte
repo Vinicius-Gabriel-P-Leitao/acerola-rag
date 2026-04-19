@@ -5,6 +5,7 @@
 	import { mobileStore } from '$lib/hooks/ui/use-mobile.hook';
 	import { themeStore } from '$lib/hooks/ui/use-theme.hook';
 	import { initHeader } from '$lib/hooks/ui/use-header.svelte';
+	import faviconPng from '$lib/assets/favicon.png';
 	import ShSonner from '$lib/components/sh-sonner/sh-sonner.svelte';
 	import ShThemeToggle from '$lib/components/sh-theme-toggle/sh-theme-toggle.svelte';
 	import MessageSquareIcon from '@lucide/svelte/icons/message-square';
@@ -31,8 +32,9 @@
 		class="hidden w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex"
 		style="box-shadow: var(--shadow-sidebar);"
 	>
-		<div class="flex h-14 items-center justify-center border-b border-sidebar-border px-4">
-			<span class="text-lg font-semibold text-sidebar-foreground">🍊 Acerola RAG</span>
+		<div class="flex h-14 items-center justify-center gap-2 border-b border-sidebar-border px-4">
+			<img src={faviconPng} alt="Acerola RAG" class="h-7 w-7" />
+			<span class="text-lg font-semibold text-sidebar-foreground">Acerola RAG</span>
 		</div>
 		<nav class="flex flex-col gap-1 p-2">
 			{#each navItems as { href, label, Icon } (href)}
