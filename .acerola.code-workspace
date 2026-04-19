@@ -11,6 +11,28 @@
     "python.testing.pytestEnabled": true,
     "svelte.enable-ts-plugin": true,
     "editor.formatOnSave": true,
+    "material-icon-theme.files.customClones": [
+      {
+        "name": "main-py",
+        "base": "python",
+        "color": "cyan"
+      },
+      {
+        "name": "config-py",
+        "base": "python",
+        "color": "red"
+      }
+    ],
+    "material-icon-theme.files.associations": {
+      "config.py": "config-py",
+      "main.py": "main-py"
+    },
+    "material-icon-theme.folders.associations": {
+      "ingestion": "download",
+      "indexing": "database",
+      "llm": "functions",
+      "rag": "database"
+    },
     "[python]": {
       "editor.defaultFormatter": "ms-python.black-formatter"
     },

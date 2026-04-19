@@ -24,22 +24,6 @@ services:
       - chroma
     restart: unless-stopped
 
-  ui:
-    build:
-      context: ..
-      dockerfile: container/Dockerfile
-    container_name: acerola-ui
-    command: >
-      streamlit run backend/ui/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
-    ports:
-      - "8501:8501"
-    depends_on:
-      - api
-    environment:
-      API_URL: http://api:8000/api/v1
-    env_file:
-      - ../.env
-    restart: unless-stopped
 
 volumes:
   chroma_data:
