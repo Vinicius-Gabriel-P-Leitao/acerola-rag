@@ -1,33 +1,28 @@
 # Refatoração da Arquitetura de Prompt e Resposta (RAG)
 
 ## Objetivo
-Garantir 100% de confiabilidade no contrato entre Frontend e Backend (tags de resposta) e melhorar drasticamente a qualidade da formatação Markdown gerada pelo LLM.
+Garantir 100% de confiabilidade no contrato entre Frontend e Backend (tags de resposta) e melhorar drasticamente a qualidade da formatação Markdown gerada pelo LLM usando as melhores práticas de mercado.
 
-## O problema atual
+## O Problema Atual
 Delegar a responsabilidade de estruturação de dados (envelopamento com `<ContentResponse>`) ao prompt do LLM é falho, pois os modelos de IA são probabilísticos e tendem a "esquecer" ou ignorar instruções quando o contexto da pergunta se torna complexo. Além disso, as instruções de formatação de sistema estão misturadas na pergunta do usuário (QA Template).
 
-## Plano de Ação (A ser implementado no Backend)
+## Plano de Ação (Checklist de Implementação)
 
-### 1. Garantir o Contrato de Tags XML via Backend
-Em vez de pedir para o LLM adicionar as tags, o código Python vai garantir isso de forma "hardcoded".
+- [x] **1. Limpar o QA Template Atual**
+  - Arquivo: `backend/rag/engine.py`
+  - Remover a constante `_SYSTEM_PROMPT` e a interpolação que exige "ALWAYS USING MARKDOWN FORMATTING".
+  - Retornar o `PromptTemplate` do LlamaIndex para seu estado base (apenas recebendo o contexto e repassando a query do usuário).
 
-- **Arquivo:** `backend/rag/engine.py`
-- **Ação:** Interceptar a resposta do `engine.query(question)` no método `query()` e concatenar as tags `<ContentResponse>` e `</ContentResponse>` no texto, garantindo que elas cheguem ao roteador da API já prontas, ou então concatenar as tags diretamente lá no `routes.py`. Faremos isso de forma hardcoded e infalível, ou seja, de forma puramente algorítmica.
+- [x] **2. Garantir o Contrato de Tags XML Hardcoded**
+  - Arquivo: `backend/rag/engine.py`
+  - Na função `query(question: str)`, logo após a chamada `response = engine.query(question)`, aplicar hardcode da tag ao invés de confiar no LLM.
+  - Implementar retorno seguro: `return f"<ContentResponse>\n{str(response)}\n</ContentResponse>"`
 
-### 2. Refatorar o Prompt de Sistema Global (System Prompt)
-Removeremos o peso de formatação XML do LLM e o focaremos exclusivamente em agir como um assistente técnico gerador de Markdown rico.
+- [x] **3. Implementar o Suporte a 'System Prompt' nos Clentes LLM**
+  - Arquivo: `backend/llm/client.py`
+  - Adicionar suporte formal à injeção de instruções de sistema (`role="system"`) nas classes `OpenAISDKLLM` e `AnthropicLLM`, alinhando a estrutura com as melhores arquiteturas (como ChatGPT e Claude).
+  - Atualizar os métodos `.complete()` e `.stream_complete()` para processar esse prompt antes do prompt de usuário.
 
-- **Arquivo:** `backend/llm/client.py` ou `backend/rag/engine.py`
-- **Ação:** Implementar o parâmetro `system_prompt` diretamente nas configurações do LLM (`Settings.llm` ou na criação do cliente).
-- **Conteúdo Sugerido do System Prompt:**
-  > "Você é um assistente técnico focado em extrair informações de documentações. 
-  > Sua função é responder a dúvida do usuário com base estritamente no contexto fornecido.
-  > Você DEVE SEMPRE usar formatação Markdown rica. Use obrigatoriamente:
-  > - Cabeçalhos (###) para estruturar sua resposta;
-  > - Listas e bullet-points para enumerar passos ou características;
-  > - Blocos de código (```linguagem) quando mencionar configurações, comandos ou código-fonte.
-  > Não adicione textos informais como 'Aqui está a resposta', seja direto."
-
-### 3. Limpar o QA Template
-- **Arquivo:** `backend/rag/engine.py`
-- **Ação:** Voltar o `qa_prompt` para seu estado limpo original (apenas contexto e pergunta), delegando a responsabilidade de "como responder" (Markdown) para o *System Prompt* descrito acima.
+- [x] **4. Configurar o System Prompt Oficial**
+  - Arquivo: `backend/rag/engine.py` (no método `_build_engine` ou similar).
+  - Passar uma instrução de sistema clara e robusta na inicialização do LLM (ex: `system_prompt="Você é um assistente técnico que responde estritamente usando Markdown rico (cabeçalhos, listas, blocos de código)."`).

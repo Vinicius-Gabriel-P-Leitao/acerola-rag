@@ -35,6 +35,7 @@ class OpenAISDKLLM(CustomLLM):
     base_url: str = Field(default="")
     temperature: float = Field(default=0.1)
     max_tokens: int = Field(default=1024)
+    system_prompt: str | None = Field(default=None)
 
     @property
     def metadata(self) -> LLMMetadata:
@@ -53,9 +54,14 @@ class OpenAISDKLLM(CustomLLM):
     def complete(
         self, prompt: str, formatted: bool = False, **kwargs: Any
     ) -> CompletionResponse:
+        messages = []
+        if self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+        messages.append({"role": "user", "content": prompt})
+        
         response = self._client().chat.completions.create(
             model=self.model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
         )
@@ -64,9 +70,14 @@ class OpenAISDKLLM(CustomLLM):
     def stream_complete(
         self, prompt: str, formatted: bool = False, **kwargs: Any
     ) -> CompletionResponseGen:
+        messages = []
+        if self.system_prompt:
+            messages.append({"role": "system", "content": self.system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
         stream = self._client().chat.completions.create(
             model=self.model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
             stream=True,
@@ -88,6 +99,7 @@ class AnthropicLLM(CustomLLM):
     api_key: str = Field(default="")
     temperature: float = Field(default=0.1)
     max_tokens: int = Field(default=1024)
+    system_prompt: str | None = Field(default=None)
 
     @property
     def metadata(self) -> LLMMetadata:
@@ -102,11 +114,15 @@ class AnthropicLLM(CustomLLM):
     ) -> CompletionResponse:
         from anthropic import Anthropic
 
-        message = Anthropic(api_key=self.api_key).messages.create(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        req_kwargs = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if self.system_prompt:
+            req_kwargs["system"] = self.system_prompt
+
+        message = Anthropic(api_key=self.api_key).messages.create(**req_kwargs)
         text = "".join(getattr(block, "text", "") for block in message.content)
         return CompletionResponse(text=text)
 
@@ -115,12 +131,16 @@ class AnthropicLLM(CustomLLM):
     ) -> CompletionResponseGen:
         from anthropic import Anthropic
 
+        req_kwargs = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+        }
+        if self.system_prompt:
+            req_kwargs["system"] = self.system_prompt
+
         accumulated = ""
-        with Anthropic(api_key=self.api_key).messages.stream(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        ) as stream:
+        with Anthropic(api_key=self.api_key).messages.stream(**req_kwargs) as stream:
             for text in stream.text_stream:
                 accumulated += text
                 yield CompletionResponse(text=accumulated, delta=text)
@@ -136,10 +156,15 @@ def create_llm(
     ollama_base_url: str,
     temperature: float,
     max_tokens: int,
+    system_prompt: str | None = None,
 ) -> CustomLLM:
     if provider == "openai":
         return OpenAISDKLLM(
-            model=model, api_key=api_key, temperature=temperature, max_tokens=max_tokens
+            model=model,
+            api_key=api_key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            system_prompt=system_prompt,
         )
 
     if provider == "ollama":
@@ -149,6 +174,7 @@ def create_llm(
             base_url=ollama_base_url,
             temperature=temperature,
             max_tokens=max_tokens,
+            system_prompt=system_prompt,
         )
 
     if provider == "gemini":
@@ -158,11 +184,16 @@ def create_llm(
             base_url=_GEMINI_BASE_URL,
             temperature=temperature,
             max_tokens=max_tokens,
+            system_prompt=system_prompt,
         )
 
     if provider == "claude":
         return AnthropicLLM(
-            model=model, api_key=api_key, temperature=temperature, max_tokens=max_tokens
+            model=model,
+            api_key=api_key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            system_prompt=system_prompt,
         )
     raise ValueError(
         f"Provider desconhecido: '{provider}'. Use: openai | ollama | gemini | claude"

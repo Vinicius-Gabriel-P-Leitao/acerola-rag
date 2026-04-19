@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"  # openai | ollama | gemini | claude
     llm_model: str = "gpt-4o-mini"
     llm_temperature: float = 0.1
-    llm_max_tokens: int = 1024
+    llm_max_tokens: int = 4096
 
     openai_api_key: str = ""
     gemini_api_key: str = ""

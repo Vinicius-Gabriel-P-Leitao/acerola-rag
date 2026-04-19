@@ -28,7 +28,7 @@ def test_query_returns_engine_response():
         engine_module._engine = None
         result = query("pergunta qualquer")
 
-    assert result == "resposta gerada"
+    assert result == "<ContentResponse>\nresposta gerada\n</ContentResponse>"
 
 
 def test_refresh_engine_resets_cache():

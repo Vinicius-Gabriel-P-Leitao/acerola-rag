@@ -8,16 +8,22 @@ from backend.rag.pipeline import get_or_create_index
 
 _engine: Optional["BaseQueryEngine"] = None
 
-_SYSTEM_PROMPT = """Sua resposta DEVE ser SEMPRE e ESTRITAMENTE formatada em Markdown, usando blocos de código, negrito e listas quando necessário. 
-Além disso, ela deve ser envelopada dentro das tags `<ContentResponse>` e `</ContentResponse>`. 
-Não adicione textos, saudações ou explicações fora dessas tags."""
-
 
 def _build_engine(index):
     from llama_index.core import Settings
     from llama_index.core.prompts import PromptTemplate
 
     from backend.llm.client import create_llm
+
+    system_prompt = (
+        "Você é um assistente técnico focado em extrair informações de documentações. "
+        "Sua função é responder a dúvida do usuário com base estritamente no contexto fornecido. "
+        "Você DEVE SEMPRE usar formatação Markdown rica. Use obrigatoriamente: "
+        "- Cabeçalhos (###) para estruturar sua resposta; "
+        "- Listas e bullet-points para enumerar passos ou características; "
+        "- Blocos de código (```linguagem) quando mencionar configurações, comandos ou código-fonte. "
+        "Não adicione textos informais como 'Aqui está a resposta', seja direto."
+    )
 
     Settings.llm = create_llm(
         provider=cfg.get_provider(),
@@ -26,16 +32,16 @@ def _build_engine(index):
         ollama_base_url=cfg.get_ollama_base_url(),
         temperature=cfg.llm_temperature,
         max_tokens=cfg.llm_max_tokens,
+        system_prompt=system_prompt,
     )
 
     qa_prompt = PromptTemplate(
-        _SYSTEM_PROMPT + "\n\n"
         "Context information is below.\n"
         "---------------------\n"
         "{context_str}\n"
         "---------------------\n"
         "Given the context information and not prior knowledge, "
-        "answer the query ALWAYS USING MARKDOWN FORMATTING.\n"
+        "answer the query.\n"
         "Query: {query_str}\n"
         "Answer: "
     )
@@ -86,4 +92,4 @@ def query(question: str) -> str:
     if engine is None:
         return "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro."
     response = engine.query(question)
-    return str(response)
+    return f"<ContentResponse>\n{str(response)}\n</ContentResponse>"
