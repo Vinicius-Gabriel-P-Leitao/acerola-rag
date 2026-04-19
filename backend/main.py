@@ -32,13 +32,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Acerola RAG", version="0.1.0", lifespan=lifespan)
 
-if settings.debug:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(router, prefix="/api/v1")
 
