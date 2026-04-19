@@ -50,7 +50,9 @@ class OpenAISDKLLM(CustomLLM):
             kwargs["base_url"] = self.base_url
         return OpenAI(**kwargs)
 
-    def complete(self, prompt: str, **kwargs: Any) -> CompletionResponse:
+    def complete(
+        self, prompt: str, formatted: bool = False, **kwargs: Any
+    ) -> CompletionResponse:
         response = self._client().chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
@@ -59,7 +61,9 @@ class OpenAISDKLLM(CustomLLM):
         )
         return CompletionResponse(text=response.choices[0].message.content or "")
 
-    def stream_complete(self, prompt: str, **kwargs: Any) -> CompletionResponseGen:
+    def stream_complete(
+        self, prompt: str, formatted: bool = False, **kwargs: Any
+    ) -> CompletionResponseGen:
         stream = self._client().chat.completions.create(
             model=self.model,
             messages=[{"role": "user", "content": prompt}],
@@ -91,7 +95,9 @@ class AnthropicLLM(CustomLLM):
             num_output=self.max_tokens,
         )
 
-    def complete(self, prompt: str, **kwargs: Any) -> CompletionResponse:
+    def complete(
+        self, prompt: str, formatted: bool = False, **kwargs: Any
+    ) -> CompletionResponse:
         from anthropic import Anthropic
 
         message = Anthropic(api_key=self.api_key).messages.create(
@@ -99,9 +105,12 @@ class AnthropicLLM(CustomLLM):
             max_tokens=self.max_tokens,
             messages=[{"role": "user", "content": prompt}],
         )
-        return CompletionResponse(text=message.content[0].text)
+        text = "".join(getattr(block, "text", "") for block in message.content)
+        return CompletionResponse(text=text)
 
-    def stream_complete(self, prompt: str, **kwargs: Any) -> CompletionResponseGen:
+    def stream_complete(
+        self, prompt: str, formatted: bool = False, **kwargs: Any
+    ) -> CompletionResponseGen:
         from anthropic import Anthropic
 
         accumulated = ""

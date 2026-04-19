@@ -15,7 +15,9 @@ def list_documents(page: int = 1, page_size: int = 20, search: str = "") -> dict
     result = col.get(include=["metadatas"])
 
     seen: dict = {}
-    for meta in result["metadatas"]:
+    for meta in result.get("metadatas") or []:
+        if meta is None:
+            continue
         src = meta.get("source", "")
         if src and src not in seen:
             seen[src] = meta
@@ -33,7 +35,7 @@ def list_documents(page: int = 1, page_size: int = 20, search: str = "") -> dict
 def get_document_content(source: str) -> str:
     col = _collection()
     result = col.get(where={"source": source}, include=["documents"])
-    docs = [d for d in result["documents"] if d]
+    docs = [d for d in (result.get("documents") or []) if d]
     return "\n\n---\n\n".join(docs)
 
 

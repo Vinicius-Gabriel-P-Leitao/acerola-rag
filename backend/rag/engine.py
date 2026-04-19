@@ -1,11 +1,14 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from llama_index.core.base.base_query_engine import BaseQueryEngine
 
 from backend.config import settings as cfg
 from backend.rag.pipeline import get_or_create_index
 
 _NO_INDEX_MSG = "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro."
 
-_engine: Optional[object] = None
+_engine: Optional["BaseQueryEngine"] = None
 
 
 def _build_engine(index):
@@ -23,7 +26,7 @@ def _build_engine(index):
 
     if cfg.langfuse_public_key and cfg.langfuse_secret_key:
         try:
-            from langfuse.llama_index import LlamaIndexCallbackHandler
+            from langfuse.llama_index import LlamaIndexCallbackHandler  # type: ignore
             from llama_index.core.callbacks import CallbackManager
 
             handler = LlamaIndexCallbackHandler(
@@ -41,7 +44,7 @@ def _build_engine(index):
     return index.as_query_engine(similarity_top_k=5)
 
 
-def get_engine() -> Optional[object]:
+def get_engine() -> Optional["BaseQueryEngine"]:
     global _engine
     if _engine is None:
         index = get_or_create_index()

@@ -1,5 +1,8 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from llama_index.core import VectorStoreIndex
 
 from backend.config import settings as cfg
 
@@ -70,8 +73,8 @@ def build_index(documents: list):
     return index
 
 
-def load_index() -> Optional[object]:
-    from llama_index.core import VectorStoreIndex, load_index_from_storage
+def load_index() -> Optional["VectorStoreIndex"]:
+    from llama_index.core import load_index_from_storage, VectorStoreIndex
 
     configure_embedding_settings()
     if cfg.vector_store == "chroma":
@@ -79,11 +82,12 @@ def load_index() -> Optional[object]:
         index = VectorStoreIndex.from_vector_store(storage_ctx.vector_store)
 
         # retorna None se a coleção estiver vazia (nenhum doc indexado ainda)
-        if storage_ctx.vector_store._collection.count() == 0:
+        collection = getattr(storage_ctx.vector_store, "_collection", None)
+        if collection and collection.count() == 0:
             return None
         return index
 
     if not (cfg.persist_dir / "default__vector_store.json").exists():
         return None
     storage_ctx = _faiss_storage(cfg.persist_dir)
-    return load_index_from_storage(storage_ctx)
+    return cast("VectorStoreIndex", load_index_from_storage(storage_ctx))

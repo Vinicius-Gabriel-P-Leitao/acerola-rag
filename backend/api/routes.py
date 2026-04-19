@@ -28,13 +28,14 @@ async def upload_documents(files: list[UploadFile] = File(...)):
     cfg.upload_dir.mkdir(parents=True, exist_ok=True)
     created = []
     for file in files:
-        suffix = Path(file.filename).suffix.lower()
+        filename = file.filename or "unknown"
+        suffix = Path(filename).suffix.lower()
         if suffix not in _ALLOWED:
             raise HTTPException(400, f"Tipo não suportado: {suffix}")
-        dest = cfg.upload_dir / file.filename
+        dest = cfg.upload_dir / filename
         with dest.open("wb") as dest_file:
             shutil.copyfileobj(file.file, dest_file)
-        job = iq.IngestionJob(filename=file.filename, file_path=dest)
+        job = iq.IngestionJob(filename=filename, file_path=dest)
         iq.enqueue(job)
         created.append({"job_id": job.job_id, "filename": job.filename})
     return UploadResponse(jobs=created)

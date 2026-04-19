@@ -17,4 +17,5 @@ def extract_text(image_path: Path, languages: List[str] = ["en", "pt"]) -> str:
     """Extrai texto de imagem via EasyOCR (OpenCV internamente)."""
     reader = _get_reader(languages)
     results = reader.readtext(str(image_path), detail=0)
-    return "\n".join(results)
+    # results can be a list of strings
+    return "\n".join([str(r) for r in results])
