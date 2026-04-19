@@ -8,7 +8,7 @@ describe('ShAccordion', () => {
 	});
 
 	it('forwards class prop via cn', async () => {
-		const { container } = render(ShAccordion, { class: 'accordion-class' });
+		const { container } = render(ShAccordion, { type: 'single', class: 'accordion-class' });
 		expect(container.querySelector('.accordion-class')).not.toBeNull();
 	});
 
