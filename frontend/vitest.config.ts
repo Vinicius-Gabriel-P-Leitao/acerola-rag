@@ -4,25 +4,23 @@ import { defineConfig, defineProject } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 
 export default defineConfig({
-	plugins: [tailwindcss() as any, sveltekit() as any],
 	test: {
+		passWithNoTests: true,
 		projects: [
 			defineProject({
-				plugins: [tailwindcss() as any, sveltekit() as any],
+				plugins: [tailwindcss(), sveltekit()],
 				test: {
 					name: 'unit',
 					environment: 'jsdom',
 					include: ['src/**/*.test.ts'],
-					exclude: ['src/**/*.svelte.test.ts', 'node_modules/**'],
-					passWithNoTests: true
+					exclude: ['src/**/*.svelte.test.ts', 'node_modules/**']
 				}
 			}),
 			defineProject({
-				plugins: [tailwindcss() as any, sveltekit() as any],
+				plugins: [tailwindcss(), sveltekit()],
 				test: {
 					name: 'browser',
 					include: ['src/**/*.svelte.test.ts'],
-					passWithNoTests: true,
 					browser: {
 						enabled: true,
 						provider: playwright(),

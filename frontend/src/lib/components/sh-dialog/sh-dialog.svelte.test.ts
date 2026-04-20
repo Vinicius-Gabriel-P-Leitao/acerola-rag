@@ -3,8 +3,8 @@ import { render } from 'vitest-browser-svelte';
 import ShDialog from './sh-dialog.svelte';
 import ShDialogHeader from './sh-dialog-header.svelte';
 import ShDialogFooter from './sh-dialog-footer.svelte';
-import ShDialogTitle from './sh-dialog-title.svelte';
-import ShDialogDescription from './sh-dialog-description.svelte';
+import ShDialogTitleWrapper from './sh-dialog-title-wrapper.test.svelte';
+import ShDialogDescriptionWrapper from './sh-dialog-description-wrapper.test.svelte';
 
 describe('ShDialog', () => {
 	it('renders without throwing when closed', () => {
@@ -32,12 +32,12 @@ describe('ShDialogFooter', () => {
 
 describe('ShDialogTitle', () => {
 	it('renders without throwing', () => {
-		expect(() => render(ShDialogTitle)).not.toThrow();
+		expect(() => render(ShDialogTitleWrapper)).not.toThrow();
 	});
 });
 
 describe('ShDialogDescription', () => {
 	it('renders without throwing', () => {
-		expect(() => render(ShDialogDescription)).not.toThrow();
+		expect(() => render(ShDialogDescriptionWrapper)).not.toThrow();
 	});
 });
