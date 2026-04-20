@@ -9,6 +9,8 @@ vi.mock('$lib/api', () => ({
 	}
 }));
 
+vi.mock('svelte-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
 import { api } from '$lib/api';
 
 describe('documentsStore', () => {

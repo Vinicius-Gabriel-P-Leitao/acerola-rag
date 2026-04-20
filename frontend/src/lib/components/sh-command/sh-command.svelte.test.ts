@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import ShCommand from './sh-command.svelte';
-import ShCommandInput from './sh-command-input.svelte';
+import ShCommandInputWrapper from './sh-command-input-wrapper.test.svelte';
 
 describe('ShCommand', () => {
 	it('renders without throwing', () => {
@@ -16,11 +16,11 @@ describe('ShCommand', () => {
 
 describe('ShCommandInput', () => {
 	it('renders without throwing', () => {
-		expect(() => render(ShCommandInput)).not.toThrow();
+		expect(() => render(ShCommandInputWrapper)).not.toThrow();
 	});
 
 	it('forwards class prop via cn', async () => {
-		const { container } = render(ShCommandInput, { class: 'input-class' });
+		const { container } = render(ShCommandInputWrapper, { class: 'input-class' });
 		expect(container.querySelector('.input-class')).not.toBeNull();
 	});
 });
