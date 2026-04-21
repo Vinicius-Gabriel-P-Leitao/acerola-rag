@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     # ── API ──────────────────────────────────────────────────────────────────
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    api_url: str = "http://localhost:8000/api/v1"
+    cors_origins: str = "*"  # Lista de origens permitidas, separadas por vírgula
     debug: bool = False
 
     # ── Langfuse (lidos do .env — deixe as chaves em branco para desabilitar) ───
