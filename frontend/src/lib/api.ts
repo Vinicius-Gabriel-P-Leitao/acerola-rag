@@ -16,7 +16,9 @@ async function request<T>(
 	body?: unknown,
 	params?: Record<string, string>
 ): Promise<T> {
-	const url = new URL(`${BASE_URL}${path}`);
+	const finalPath = `${BASE_URL}${path}`.replace('//', '/');
+	const url = new URL(finalPath, window.location.origin);
+
 	if (params) {
 		for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 	}
@@ -37,7 +39,8 @@ async function request<T>(
 }
 
 async function postForm<T>(path: string, form: FormData): Promise<T> {
-	const res = await fetch(`${BASE_URL}${path}`, { method: 'POST', body: form });
+	const finalPath = `${BASE_URL}${path}`.replace('//', '/');
+	const res = await fetch(finalPath, { method: 'POST', body: form });
 	if (!res.ok) {
 		const text = await res.text().catch(() => res.statusText);
 		throw new ApiError(res.status, text);
