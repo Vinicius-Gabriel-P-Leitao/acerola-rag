@@ -49,12 +49,18 @@ def queue_size() -> int:
 
 
 def _process_job(job: IngestionJob) -> None:
+    import logging
     from backend.rag.engine import refresh_engine
     from backend.rag.pipeline import ingest_file
+
+    # Ignora warnings de "Cannot set non-stroke color" da pypdf, que podem
+    # poluir os logs ao processar PDFs com elementos gráficos complexos.
+    logging.getLogger("pypdf._reader").setLevel(logging.CRITICAL)
 
     ingest_file(job.file_path)
     refresh_engine()
     job.file_path.unlink(missing_ok=True)
+
 
 
 async def worker() -> None:
