@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -7,6 +8,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+logger = logging.getLogger(__name__)
 
 class JobStatus(str, Enum):
     PENDING = "pending"
@@ -28,10 +30,12 @@ class IngestionJob:
 
 _queue: asyncio.Queue[IngestionJob] = asyncio.Queue()
 _jobs: dict[str, IngestionJob] = {}
-_executor = ThreadPoolExecutor(max_workers=1)
+# Aumentado para 4 workers para processamento paralelo
+_executor = ThreadPoolExecutor(max_workers=4)
 
 
 def enqueue(job: IngestionJob) -> None:
+    logger.info(f"Enfileirando trabalho: {job.filename} (ID: {job.job_id})")
     _jobs[job.job_id] = job
     _queue.put_nowait(job)
 
@@ -49,18 +53,22 @@ def queue_size() -> int:
 
 
 def _process_job(job: IngestionJob) -> None:
-    import logging
     from backend.rag.engine import refresh_engine
     from backend.rag.pipeline import ingest_file
 
-    # Ignora warnings de "Cannot set non-stroke color" da pypdf, que podem
-    # poluir os logs ao processar PDFs com elementos gráficos complexos.
-    logging.getLogger("pypdf._reader").setLevel(logging.CRITICAL)
+    logger.info(f"Iniciando processamento: {job.filename} (ID: {job.job_id})")
 
-    ingest_file(job.file_path)
-    refresh_engine()
-    job.file_path.unlink(missing_ok=True)
+    # Silenciamento radical da pypdf
+    logging.getLogger("pypdf").setLevel(logging.ERROR)
 
+    try:
+        ingest_file(job.file_path)
+        refresh_engine()
+        job.file_path.unlink(missing_ok=True)
+        logger.info(f"Processamento concluído: {job.filename} (ID: {job.job_id})")
+    except Exception as e:
+        logger.error(f"Erro ao processar {job.filename}: {e}")
+        raise
 
 
 async def worker() -> None:
@@ -77,3 +85,4 @@ async def worker() -> None:
         finally:
             job.finished_at = datetime.now(UTC).isoformat()
             _queue.task_done()
+

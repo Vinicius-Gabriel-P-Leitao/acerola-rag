@@ -36,6 +36,7 @@
 	};
 
 	let uploadFiles = $state<File[]>([]);
+	let uploadLoading = $state(false); // Nova variável de estado
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 	let textTitle = $state('');
 	let textContent = $state('');
@@ -67,6 +68,7 @@
 
 	async function handleUpload() {
 		if (uploadFiles.length === 0) return;
+		uploadLoading = true; // Inicia carregamento
 		try {
 			await documentsStore.uploadFiles(uploadFiles);
 
@@ -79,6 +81,8 @@
 			selectedFilesOpen = false;
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : 'Erro no upload');
+		} finally {
+			uploadLoading = false; // Finaliza carregamento
 		}
 	}
 
@@ -207,8 +211,12 @@
 						<ListIcon class="size-4" />
 						Ver arquivos selecionados ({uploadFiles.length})
 					</ShButton>
-					<ShButton onclick={handleUpload} size="sm" class="gap-2">
-						<UploadIcon class="size-4" />
+					<ShButton onclick={handleUpload} size="sm" class="gap-2" disabled={uploadLoading}>
+						{#if uploadLoading}
+							<ShSpinner class="size-4" />
+						{:else}
+							<UploadIcon class="size-4" />
+						{/if}
 						Enviar
 					</ShButton>
 				</div>
