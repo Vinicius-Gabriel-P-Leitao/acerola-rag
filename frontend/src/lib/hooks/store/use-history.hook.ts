@@ -33,12 +33,25 @@ interface HistoryState {
 	searchQuery: string;
 }
 
-function createHistoryStore() {
+	function createHistoryStore() {
+	// Usar um valor padrão seguro em ambiente de teste
+	const isBrowser = typeof window !== 'undefined';
+	const saved = isBrowser ? localStorage.getItem('acerola_history') : null;
+	const initial = saved ? JSON.parse(saved) : [];
+
 	const _store = writable<HistoryState>({
-		conversations: [],
+		conversations: initial,
 		loading: false,
 		searchQuery: ''
 	});
+
+	// Assina para salvar sempre que mudar
+	_store.subscribe((s) => {
+		if (isBrowser) {
+			localStorage.setItem('acerola_history', JSON.stringify(s.conversations));
+		}
+	});
+
 
 	async function load() {
 		_store.update((s) => ({ ...s, loading: true }));

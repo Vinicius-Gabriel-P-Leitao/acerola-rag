@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 
 from backend.api import ingestion_queue as iq
 from backend.api.dtos import (
@@ -223,6 +224,27 @@ async def query_documents(
         answer=answer,
         conversation_id=conv_id,
         sources=[RagSourceDTO(**s) for s in sources],
+    )
+
+
+@router.post("/query/stream")
+async def query_documents_stream(
+    question: str = Form(...),
+    conversation_id: str = Form(default=""),
+    files: list[UploadFile] = File(default=[]),
+):
+    from backend.rag.engine import stream_query
+    
+    if not cfg.is_llm_configured():
+        raise HTTPException(422, "Modelo não configurado.")
+    if len(files) > _MAX_ATTACH:
+        raise HTTPException(400, "Máximo de arquivos excedido.")
+
+    conv_id = conversation_id.strip() or str(uuid.uuid4())
+
+    return StreamingResponse(
+        stream_query(question, session_id=conv_id, extra_context=None),
+        media_type="text/event-stream"
     )
 
 

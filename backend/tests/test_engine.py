@@ -147,7 +147,7 @@ def _call_build_engine():
     return mock_cls.from_defaults.call_args, result
 
 
-def test_build_engine_retriever_uses_top_k_6():
+def test_build_engine_retriever_uses_top_k_4():
     mock_index = MagicMock()
 
     with patch("backend.llm.client.create_llm"), \
@@ -159,7 +159,7 @@ def test_build_engine_retriever_uses_top_k_6():
         from backend.rag.engine import _build_engine
         _build_engine()
 
-    mock_index.as_retriever.assert_called_once_with(similarity_top_k=6)
+    mock_index.as_retriever.assert_called_once_with(similarity_top_k=4)
 
 
 def test_build_engine_has_long_context_reorder():

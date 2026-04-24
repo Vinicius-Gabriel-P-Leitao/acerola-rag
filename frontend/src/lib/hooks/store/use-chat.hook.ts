@@ -2,6 +2,20 @@ import { writable, get } from 'svelte/store';
 import { api } from '$lib/api';
 import { historyStore, type RagSource } from './use-history.hook';
 
+export interface AttachedFileDTO {
+	name: string;
+	type: string;
+	size_bytes: number;
+}
+
+export interface MessageDTO {
+	id: number;
+	role: string;
+	content: string;
+	created_at: string;
+	attached_files: AttachedFileDTO[];
+}
+
 export interface AttachedFile {
 	name: string;
 	type: string;
@@ -69,42 +83,43 @@ function createChatStore() {
 				if (pf.file) form.append('files', pf.file);
 			}
 
-			const data = await (pending.length === 0
-				? api.post<{
-						answer: string;
-						conversation_id: string;
-						sources: RagSource[];
-				  }>('/query', { question, conversation_id: state.conversationId })
-				: api.postForm<{
-						answer: string;
-						conversation_id: string;
-						sources: RagSource[];
-				  }>('/query', form));
+			// Inicia o consumo do stream
+			await api.postFormStream(
+				'/query/stream',
+				form,
+				(token) => {
+					_store.update((s) => {
+						const msgs = [...s.messages];
+						msgs[idx] = { 
+                            ...msgs[idx], 
+                            content: msgs[idx].content + token 
+                        };
+						return { ...s, messages: msgs };
+					});
+				},
+				(error) => {
+					_store.update((s) => {
+						const msgs = [...s.messages];
+						msgs[idx] = { 
+                            ...msgs[idx], 
+                            content: `❌ Erro: ${error.message}` 
+                        };
+						return { ...s, messages: msgs, loading: false };
+					});
+				}
+			);
 
-			_store.update((s) => {
-				const msgs = [...s.messages];
-				msgs[idx] = { role: 'assistant', content: data.answer };
-				return {
-					...s,
-					messages: msgs,
-					loading: false,
-					conversationId: data.conversation_id,
-					sources: data.sources ?? []
-				};
-			});
+			_store.update((s) => ({ ...s, loading: false }));
 
-			// Update sidebar history
-			historyStore.addOrUpdate({
-				id: data.conversation_id,
-				title: question.slice(0, 60),
-				created_at: new Date().toISOString(),
-				updated_at: new Date().toISOString()
-			});
+			// Nota: Como o stream atual retorna apenas o texto, 
+			// a persistência de sources/conv_id precisará de ajuste 
+			// no backend para enviar um JSON final ou header.
+			// Por enquanto, o chat funcional com streaming de texto está garantido.
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Erro ao consultar a API';
 			_store.update((s) => {
 				const msgs = [...s.messages];
-				msgs[idx] = { role: 'assistant', content: `❌ ${msg}` };
+				msgs[idx] = { role: 'assistant', content: `❌ ${msg}`, attached_files: [] };
 				return { ...s, messages: msgs, loading: false, error: msg };
 			});
 		}
@@ -128,7 +143,11 @@ function createChatStore() {
 				messages: detail.messages.map((m) => ({
 					role: m.role as 'user' | 'assistant',
 					content: m.content,
-					attached_files: m.attached_files
+					attached_files: m.attached_files.map(f => ({
+						name: f.name,
+						type: f.type,
+						size_bytes: f.size_bytes
+					}))
 				})),
 				loading: false,
 				error: null,

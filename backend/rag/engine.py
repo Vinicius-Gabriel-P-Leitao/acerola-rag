@@ -146,3 +146,22 @@ def query(
     ]
 
     return f"<ContentResponse>\n{str(response)}\n</ContentResponse>", sources
+
+
+def stream_query(
+    question: str,
+    session_id: str = "default",
+    extra_context: str | None = None,
+):
+    engine = get_engine(session_id)
+    if engine is None:
+        yield "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro."
+        return
+
+    prompt = question
+    if extra_context:
+        prompt = f"{question}\n\n---\nArquivos anexados pelo usuário:\n{extra_context}"
+
+    response_stream = engine.stream_chat(prompt)
+    for token in response_stream.response_gen:
+        yield token

@@ -194,6 +194,15 @@ def test_query_returns_sources(client):
     assert r.json()["sources"][0]["source_file"] == "doc.pdf"
 
 
+def test_query_stream_endpoint(client):
+    with _mock_cfg(True), \
+         patch("backend.rag.engine.stream_query", return_value=["token1", "token2"]):
+        r = client.post("/api/v1/query/stream", data={"question": "teste"})
+    assert r.status_code == 200
+    # StreamingResponse returns the joined stream by default in TestClient
+    assert r.text == "token1token2"
+
+
 # ── /history ──────────────────────────────────────────────────────────────────
 
 def test_history_list_empty_at_start(client):
