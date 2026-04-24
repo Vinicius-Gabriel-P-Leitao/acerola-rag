@@ -1,7 +1,7 @@
 import json
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Filter, FieldCondition, MatchValue, FilterSelector
+from qdrant_client.models import FieldCondition, Filter, FilterSelector, MatchValue
 
 from backend.config import settings as cfg
 

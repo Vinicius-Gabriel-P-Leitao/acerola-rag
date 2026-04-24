@@ -1,8 +1,9 @@
 {
   "folders": [
-    { "path": "backend" },
     { "path": "frontend" },
-    { "path": "container" }
+    { "path": "backend" },
+    { "path": "docker" },
+    { "path": "docs" },
   ],
   "settings": {
     "python.defaultInterpreterPath": "${workspaceFolder:backend}\\.venv\\Scripts\\python.exe",
@@ -15,36 +16,36 @@
       {
         "name": "main-py",
         "base": "python",
-        "color": "cyan"
+        "color": "cyan",
       },
       {
         "name": "config-py",
         "base": "python",
-        "color": "red"
-      }
+        "color": "red",
+      },
     ],
     "material-icon-theme.files.associations": {
       "config.py": "config-py",
-      "main.py": "main-py"
+      "main.py": "main-py",
     },
     "material-icon-theme.folders.associations": {
       "ingestion": "download",
       "indexing": "database",
       "llm": "functions",
-      "rag": "database"
+      "rag": "database",
     },
     "[python]": {
-      "editor.defaultFormatter": "ms-python.black-formatter"
+      "editor.defaultFormatter": "ms-python.black-formatter",
     },
     "[svelte]": {
-      "editor.defaultFormatter": "svelte.svelte-vscode"
+      "editor.defaultFormatter": "svelte.svelte-vscode",
     },
     "[yaml]": {
-      "editor.defaultFormatter": "redhat.vscode-yaml"
+      "editor.defaultFormatter": "redhat.vscode-yaml",
     },
     "[dockercompose]": {
-      "editor.defaultFormatter": "redhat.vscode-yaml"
-    }
+      "editor.defaultFormatter": "redhat.vscode-yaml",
+    },
   },
   "extensions": {
     "recommendations": [
@@ -54,7 +55,7 @@
       "svelte.svelte-vscode",
       "redhat.vscode-yaml",
       "ms-azuretools.vscode-docker",
-      "ms-vscode-remote.remote-containers"
-    ]
-  }
+      "ms-vscode-remote.remote-containers",
+    ],
+  },
 }

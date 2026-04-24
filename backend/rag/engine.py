@@ -68,13 +68,14 @@ def _build_engine():
         system_prompt=system_prompt,
     )
 
-    retriever = index.as_retriever(similarity_top_k=6)
+    retriever = index.as_retriever(similarity_top_k=4)
     memory = ChatMemoryBuffer.from_defaults(token_limit=4096)
     postprocessors: list[BaseNodePostprocessor] = [LongContextReorder()]
 
     if cfg.langfuse_public_key and cfg.langfuse_secret_key:
         try:
             import os
+
             from langfuse import get_client  # type: ignore
             from openinference.instrumentation.llama_index import LlamaIndexInstrumentor  # type: ignore
 
@@ -104,7 +105,7 @@ def get_engine(session_id: str) -> Optional["BaseChatEngine"]:
     return _sessions[session_id]
 
 
-def refresh_engine(session_id: Optional[str] = None) -> None:
+def refresh_engine(session_id: str | None = None) -> None:
     global _index
     _index = None
     if session_id is not None:
@@ -113,14 +114,88 @@ def refresh_engine(session_id: Optional[str] = None) -> None:
         _sessions.clear()
 
 
-def query(question: str, session_id: str = "default") -> str:
+def query(
+    question: str,
+    session_id: str = "default",
+    extra_context: str | None = None,
+) -> tuple[str, list[dict]]:
     engine = get_engine(session_id)
     if engine is None:
-        return "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro."
-    response = engine.chat(question)
-    if _langfuse is not None:
-        try:
-            _langfuse.flush()
-        except Exception:
-            pass
-    return f"<ContentResponse>\n{str(response)}\n</ContentResponse>"
+        return "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro.", []
+
+    prompt = question
+    if extra_context:
+        prompt = f"{question}\n\n---\nArquivos anexados pelo usuário:\n{extra_context}"
+
+    response = engine.chat(prompt)
+
+    # if _langfuse is not None:
+    #     try:
+    #         _langfuse.flush()
+    #     except Exception:
+    #         pass
+
+    source_nodes = getattr(response, "source_nodes", [])
+    sources = [
+        {
+            "source_file": node.node.metadata.get("source", "desconhecido"),
+            "chunk_text": (node.node.get_content() or "")[:600],
+            "score": round(float(node.score or 0.0), 4),
+        }
+        for node in source_nodes
+    ]
+
+    return f"<ContentResponse>\n{str(response)}\n</ContentResponse>", sources
+
+
+def stream_query(
+    question: str,
+    session_id: str = "default",
+    extra_context: str | None = None,
+    attached_meta: list[dict] | None = None,
+):
+    engine = get_engine(session_id)
+    if engine is None:
+        yield "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro."
+        return
+
+    prompt = question
+    if extra_context:
+        prompt = f"{question}\n\n---\nArquivos anexados pelo usuário:\n{extra_context}"
+
+    full_answer = ""
+    try:
+        response_stream = engine.stream_chat(prompt)
+        for token in response_stream.response_gen:
+            full_answer += token
+            yield token
+    except Exception as e:
+        error_msg = str(e)
+        if "429" in error_msg or "quota" in error_msg.lower():
+            yield "\n\n❌ **Erro de Cota (429):** Você atingiu o limite de requisições do seu plano atual no Gemini. Por favor, aguarde o reset da cota ou altere a API Key nas configurações."
+        else:
+            yield f"\n\n❌ **Erro na API:** {error_msg}"
+        return
+
+    # Persist to history after the stream finishes successfully
+    try:
+        from backend.history import manager as hist
+
+        answer_to_save = f"<ContentResponse>\n{full_answer}\n</ContentResponse>"
+        source_nodes = getattr(response_stream, "source_nodes", [])
+        sources = [
+            {
+                "source_file": node.node.metadata.get("source", "desconhecido"),
+                "chunk_text": (node.node.get_content() or "")[:600],
+                "score": round(float(node.score or 0.0), 4),
+            }
+            for node in source_nodes
+        ]
+
+        title = question[:60].strip()
+        hist.create_conversation(session_id, title)
+        hist.save_message(session_id, "user", question, attached_files=attached_meta)
+        asst_msg_id = hist.save_message(session_id, "assistant", answer_to_save)
+        hist.save_rag_sources(session_id, asst_msg_id, sources)
+    except Exception as e:
+        print(f"Error persisting history: {e}")
