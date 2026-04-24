@@ -234,7 +234,7 @@ async def query_documents_stream(
     files: list[UploadFile] = File(default=[]),
 ):
     from backend.rag.engine import stream_query
-    
+
     if not cfg.is_llm_configured():
         raise HTTPException(422, "Modelo não configurado.")
     if len(files) > _MAX_ATTACH:
@@ -242,9 +242,29 @@ async def query_documents_stream(
 
     conv_id = conversation_id.strip() or str(uuid.uuid4())
 
+    # Process attached files
+    extra_parts: list[str] = []
+    attached_meta: list[dict] = []
+    for upload in files:
+        try:
+            text, meta = _extract_file_text(upload)
+            extra_parts.append(f"[{meta['name']}]\n{text}")
+            attached_meta.append(meta)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(422, f"Erro ao processar '{upload.filename}': {exc}") from exc
+
+    extra_context = "\n\n".join(extra_parts) if extra_parts else None
+
     return StreamingResponse(
-        stream_query(question, session_id=conv_id, extra_context=None),
-        media_type="text/event-stream"
+        stream_query(
+            question,
+            session_id=conv_id,
+            extra_context=extra_context,
+            attached_meta=attached_meta,
+        ),
+        media_type="text/event-stream",
     )
 
 

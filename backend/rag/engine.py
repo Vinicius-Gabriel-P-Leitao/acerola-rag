@@ -152,6 +152,7 @@ def stream_query(
     question: str,
     session_id: str = "default",
     extra_context: str | None = None,
+    attached_meta: list[dict] | None = None,
 ):
     engine = get_engine(session_id)
     if engine is None:
@@ -162,6 +163,39 @@ def stream_query(
     if extra_context:
         prompt = f"{question}\n\n---\nArquivos anexados pelo usuário:\n{extra_context}"
 
-    response_stream = engine.stream_chat(prompt)
-    for token in response_stream.response_gen:
-        yield token
+    full_answer = ""
+    try:
+        response_stream = engine.stream_chat(prompt)
+        for token in response_stream.response_gen:
+            full_answer += token
+            yield token
+    except Exception as e:
+        error_msg = str(e)
+        if "429" in error_msg or "quota" in error_msg.lower():
+            yield "\n\n❌ **Erro de Cota (429):** Você atingiu o limite de requisições do seu plano atual no Gemini. Por favor, aguarde o reset da cota ou altere a API Key nas configurações."
+        else:
+            yield f"\n\n❌ **Erro na API:** {error_msg}"
+        return
+
+    # Persist to history after the stream finishes successfully
+    try:
+        from backend.history import manager as hist
+
+        answer_to_save = f"<ContentResponse>\n{full_answer}\n</ContentResponse>"
+        source_nodes = getattr(response_stream, "source_nodes", [])
+        sources = [
+            {
+                "source_file": node.node.metadata.get("source", "desconhecido"),
+                "chunk_text": (node.node.get_content() or "")[:600],
+                "score": round(float(node.score or 0.0), 4),
+            }
+            for node in source_nodes
+        ]
+
+        title = question[:60].strip()
+        hist.create_conversation(session_id, title)
+        hist.save_message(session_id, "user", question, attached_files=attached_meta)
+        asst_msg_id = hist.save_message(session_id, "assistant", answer_to_save)
+        hist.save_rag_sources(session_id, asst_msg_id, sources)
+    except Exception as e:
+        print(f"Error persisting history: {e}")

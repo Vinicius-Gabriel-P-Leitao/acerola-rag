@@ -35,8 +35,10 @@ interface HistoryState {
 
 	function createHistoryStore() {
 	// Usar um valor padrão seguro em ambiente de teste
-	const isBrowser = typeof window !== 'undefined';
-	const saved = isBrowser ? localStorage.getItem('acerola_history') : null;
+	const isBrowser = typeof window !== 'undefined' && typeof localStorage !== 'undefined';
+	const saved = isBrowser && typeof localStorage.getItem === 'function' 
+		? localStorage.getItem('acerola_history') 
+		: null;
 	const initial = saved ? JSON.parse(saved) : [];
 
 	const _store = writable<HistoryState>({
@@ -47,7 +49,7 @@ interface HistoryState {
 
 	// Assina para salvar sempre que mudar
 	_store.subscribe((s) => {
-		if (isBrowser) {
+		if (isBrowser && typeof localStorage.setItem === 'function') {
 			localStorage.setItem('acerola_history', JSON.stringify(s.conversations));
 		}
 	});
@@ -57,8 +59,13 @@ interface HistoryState {
 		_store.update((s) => ({ ...s, loading: true }));
 		try {
 			const data = await api.get<{ conversations: Conversation[] }>('/history');
-			_store.update((s) => ({ ...s, conversations: data.conversations, loading: false }));
-		} catch {
+			_store.set({ 
+				conversations: data.conversations || [], 
+				loading: false,
+				searchQuery: '' 
+			});
+		} catch (error) {
+			console.error('Failed to load history:', error);
 			_store.update((s) => ({ ...s, loading: false }));
 		}
 	}

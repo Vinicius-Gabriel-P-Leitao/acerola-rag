@@ -23,9 +23,13 @@ async function request<T>(
 		for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 	}
 
-	const init: RequestInit = { method };
+	const init: RequestInit = { 
+		method,
+		cache: 'no-store', // Disable browser caching for all requests
+		headers: {}
+	};
 	if (body !== undefined) {
-		init.headers = { 'Content-Type': 'application/json' };
+		(init.headers as Record<string, string>)['Content-Type'] = 'application/json';
 		init.body = JSON.stringify(body);
 	}
 
