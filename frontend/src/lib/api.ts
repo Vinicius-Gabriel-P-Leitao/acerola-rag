@@ -3,10 +3,44 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? '/api/v1';
 class ApiError extends Error {
 	constructor(
 		public status: number,
-		message: string
+		message: string,
+		public code?: string,
+		public detail?: unknown
 	) {
 		super(message);
 		this.name = 'ApiError';
+	}
+}
+
+async function getErrorData(
+	res: Response
+): Promise<{ message: string; code?: string; detail?: unknown }> {
+	try {
+		const contentType = res.headers.get('Content-Type');
+		if (contentType?.includes('application/json')) {
+			const data = await res.json();
+			return {
+				message: data.error || data.detail || data.message || 'Erro desconhecido',
+				code: data.code,
+				detail: data.detail
+			};
+		}
+
+		const text = await res.text();
+		// Bloqueia renderização de HTML grotesco (CDN/Proxy timeouts)
+		if (
+			text.trim().toLowerCase().startsWith('<!doctype') ||
+			text.trim().toLowerCase().includes('<html')
+		) {
+			return {
+				message: `Falha na comunicação com o servidor (${res.status}). O serviço pode estar temporariamente indisponível ou em timeout.`,
+				code: `HTTP_${res.status}`
+			};
+		}
+
+		return { message: text || res.statusText, code: `HTTP_${res.status}` };
+	} catch {
+		return { message: res.statusText || 'Erro de rede', code: `HTTP_${res.status}` };
 	}
 }
 
@@ -23,9 +57,9 @@ async function request<T>(
 		for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
 	}
 
-	const init: RequestInit = { 
+	const init: RequestInit = {
 		method,
-		cache: 'no-store', // Disable browser caching for all requests
+		cache: 'no-store',
 		headers: {}
 	};
 	if (body !== undefined) {
@@ -35,8 +69,8 @@ async function request<T>(
 
 	const res = await fetch(url.toString(), init);
 	if (!res.ok) {
-		const text = await res.text().catch(() => res.statusText);
-		throw new ApiError(res.status, text);
+		const errorData = await getErrorData(res);
+		throw new ApiError(res.status, errorData.message, errorData.code, errorData.detail);
 	}
 
 	return res.json() as Promise<T>;
@@ -46,8 +80,8 @@ async function postForm<T>(path: string, form: FormData): Promise<T> {
 	const finalPath = `${BASE_URL}${path}`.replace('//', '/');
 	const res = await fetch(finalPath, { method: 'POST', body: form });
 	if (!res.ok) {
-		const text = await res.text().catch(() => res.statusText);
-		throw new ApiError(res.status, text);
+		const errorData = await getErrorData(res);
+		throw new ApiError(res.status, errorData.message, errorData.code, errorData.detail);
 	}
 	return res.json() as Promise<T>;
 }
@@ -59,17 +93,17 @@ async function postFormStream(
 	onError: (error: Error) => void
 ): Promise<void> {
 	const finalPath = `${BASE_URL}${path}`.replace('//', '/');
-	
+
 	try {
 		const res = await fetch(finalPath, { method: 'POST', body: form });
-		
+
 		if (!res.ok) {
-			const text = await res.text().catch(() => res.statusText);
-			throw new ApiError(res.status, text);
+			const errorData = await getErrorData(res);
+			throw new ApiError(res.status, errorData.message, errorData.code, errorData.detail);
 		}
 
 		if (!res.body) {
-			throw new Error("Resposta vazia do servidor");
+			throw new Error('Resposta vazia do servidor');
 		}
 
 		const reader = res.body.getReader();
@@ -79,7 +113,7 @@ async function postFormStream(
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
-				
+
 				const chunk = decoder.decode(value, { stream: true });
 				if (chunk) onToken(chunk);
 			}
@@ -94,14 +128,12 @@ async function postFormStream(
 }
 
 export const api = {
-	// prettier-ignore
-	get: <T>(path: string, params?: Record<string, string>) => request<T>('GET', path, undefined, params),
+	get: <T>(path: string, params?: Record<string, string>) =>
+		request<T>('GET', path, undefined, params),
 	post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
 	delete: <T>(path: string) => request<T>('DELETE', path),
 	postForm,
 	postFormStream
 };
-
-
 
 export { ApiError };

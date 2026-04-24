@@ -35,7 +35,7 @@
 
 	{#if needsTruncation && !expanded}
 		<div
-			class="pointer-events-none absolute bottom-6 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent"
+			class="pointer-events-none absolute right-0 bottom-6 left-0 h-10 bg-gradient-to-t from-card to-transparent"
 		></div>
 	{/if}
 
@@ -45,7 +45,9 @@
 			onclick={() => (expanded = !expanded)}
 		>
 			{expanded ? 'Ver menos' : 'Ver mais'}
-			<ChevronDownIcon class={cn('size-3 transition-transform duration-200', expanded && 'rotate-180')} />
+			<ChevronDownIcon
+				class={cn('size-3 transition-transform duration-200', expanded && 'rotate-180')}
+			/>
 		</button>
 	{/if}
 </div>

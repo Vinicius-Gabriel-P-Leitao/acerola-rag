@@ -64,7 +64,7 @@ describe('chatStore', () => {
 		chatStore.clear();
 
 		await chatStore.send('pergunta');
-		
+
 		// Current implementation doesn't extract conversationId from stream tokens yet
 		expect(chatStore.conversationId).toBeNull();
 	});
@@ -77,9 +77,9 @@ describe('chatStore', () => {
 		await chatStore.send('teste');
 
 		expect(api.postFormStream).toHaveBeenCalledWith(
-			'/query/stream', 
-			expect.any(FormData), 
-			expect.any(Function), 
+			'/query/stream',
+			expect.any(FormData),
+			expect.any(Function),
 			expect.any(Function)
 		);
 	});
@@ -105,15 +105,11 @@ describe('chatStore', () => {
 
 		// Manually set conversationId to test if it's sent
 		// Since send() doesn't set it yet, we just test the logic of sending it if present
-		const { writable, get } = await import('svelte/store');
-		// Note: we can't easily reach internal _store, but we can call loadConversation
-		// Or just rely on the fact that send() uses whatever is in the store.
-		
+
 		await chatStore.send('primeira');
 		const firstCall = vi.mocked(api.postFormStream).mock.calls[0];
 		expect((firstCall[1] as FormData).get('conversation_id')).toBeNull();
 	});
-
 	it('includes question in FormData', async () => {
 		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
 		const { chatStore } = await import('./use-chat.hook');
@@ -133,7 +129,8 @@ describe('chatStore', () => {
 		await chatStore.send('pergunta');
 
 		const last = chatStore.messages.at(-1);
-		expect(last?.content).toContain('❌');
+		expect(last?.content).toBe('timeout');
+		expect(last?.isError).toBe(true);
 		expect(chatStore.error).toBe('timeout');
 	});
 
@@ -208,7 +205,10 @@ describe('chatStore', () => {
 		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
 		const { chatStore } = await import('./use-chat.hook');
 		chatStore.clear();
-		const file = new File(['content'], 'anexo.txt', { type: 'text/plain', lastModified: Date.now() });
+		const file = new File(['content'], 'anexo.txt', {
+			type: 'text/plain',
+			lastModified: Date.now()
+		});
 		// Svelte 5 / JSDOM might need some help with File if it's not fully standard
 		chatStore.attachFile(file);
 

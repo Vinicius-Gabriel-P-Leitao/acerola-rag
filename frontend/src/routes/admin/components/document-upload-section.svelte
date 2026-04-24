@@ -69,7 +69,7 @@
 				<ListIcon class="size-4" />
 				Ver arquivos ({uploadFiles.length})
 			</ShButton>
-      
+
 			<ShButton onclick={handleUpload} size="sm" class="gap-2" disabled={uploadLoading}>
 				{#if uploadLoading}<ShSpinner class="size-4" />{:else}<UploadIcon class="size-4" />{/if}
 				Enviar

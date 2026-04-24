@@ -9,8 +9,18 @@ vi.mock('$lib/api', () => ({
 
 import { api } from '$lib/api';
 
-const CONV_A = { id: 'a1', title: 'Conversa A', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-02T00:00:00Z' };
-const CONV_B = { id: 'b2', title: 'Conversa B', created_at: '2026-01-03T00:00:00Z', updated_at: '2026-01-04T00:00:00Z' };
+const CONV_A = {
+	id: 'a1',
+	title: 'Conversa A',
+	created_at: '2026-01-01T00:00:00Z',
+	updated_at: '2026-01-02T00:00:00Z'
+};
+const CONV_B = {
+	id: 'b2',
+	title: 'Conversa B',
+	created_at: '2026-01-03T00:00:00Z',
+	updated_at: '2026-01-04T00:00:00Z'
+};
 
 describe('historyStore', () => {
 	beforeEach(() => {
@@ -94,7 +104,9 @@ describe('historyStore', () => {
 		const detail = {
 			id: 'a1',
 			title: 'Conversa A',
-			messages: [{ id: 1, role: 'user', content: 'oi', created_at: '2026-01-01', attached_files: [] }],
+			messages: [
+				{ id: 1, role: 'user', content: 'oi', created_at: '2026-01-01', attached_files: [] }
+			],
 			sources: []
 		};
 		vi.mocked(api.get).mockResolvedValueOnce(detail);
