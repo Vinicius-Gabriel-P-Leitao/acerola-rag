@@ -68,7 +68,7 @@ def _build_engine():
         system_prompt=system_prompt,
     )
 
-    retriever = index.as_retriever(similarity_top_k=6)
+    retriever = index.as_retriever(similarity_top_k=4)
     memory = ChatMemoryBuffer.from_defaults(token_limit=4096)
     postprocessors: list[BaseNodePostprocessor] = [LongContextReorder()]
 
@@ -129,11 +129,11 @@ def query(
 
     response = engine.chat(prompt)
 
-    if _langfuse is not None:
-        try:
-            _langfuse.flush()
-        except Exception:
-            pass
+    # if _langfuse is not None:
+    #     try:
+    #         _langfuse.flush()
+    #     except Exception:
+    #         pass
 
     source_nodes = getattr(response, "source_nodes", [])
     sources = [

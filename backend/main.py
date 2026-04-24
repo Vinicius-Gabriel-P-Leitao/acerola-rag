@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     from backend.history import manager as hist
 
     load_persisted_settings()
-    hist.init(Path(__file__).parent.parent / "data" / "history.db")
+    hist.init(Path(__file__).parent / "data" / "history.db")
     task = asyncio.create_task(iq.worker())
     yield
     task.cancel()
