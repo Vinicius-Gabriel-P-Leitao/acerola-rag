@@ -1,16 +1,15 @@
 import asyncio
-import uuid
 import logging
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     PENDING = "pending"
     PROCESSING = "processing"
     DONE = "done"
@@ -23,9 +22,9 @@ class IngestionJob:
     file_path: Path
     job_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     status: JobStatus = JobStatus.PENDING
-    error: Optional[str] = None
+    error: str | None = None
     created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
-    finished_at: Optional[str] = None
+    finished_at: str | None = None
 
 
 _queue: asyncio.Queue[IngestionJob] = asyncio.Queue()
@@ -40,7 +39,7 @@ def enqueue(job: IngestionJob) -> None:
     _queue.put_nowait(job)
 
 
-def get_job(job_id: str) -> Optional[IngestionJob]:
+def get_job(job_id: str) -> IngestionJob | None:
     return _jobs.get(job_id)
 
 

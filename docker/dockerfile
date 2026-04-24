@@ -25,6 +25,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY --from=frontend-builder /frontend/build ./frontend/build
 
+# Create data directory and set permissions
+RUN mkdir -p /app/backend/data && chmod -R 777 /app/backend/data
+
 EXPOSE 8000
 
 CMD ["python", "-m", "backend.main", "--api-only"]

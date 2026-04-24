@@ -219,8 +219,9 @@ def test_delete_document_nonexistent_returns_zero():
 
 
 def test_delete_document_calls_delete_with_filter():
-    from backend.indexing.documents import delete_document
     from qdrant_client.models import FilterSelector
+
+    from backend.indexing.documents import delete_document
 
     points = [_make_point()]
     ctx, mock_client = _patch_client(points)

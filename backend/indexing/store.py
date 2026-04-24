@@ -1,11 +1,10 @@
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 if TYPE_CHECKING:
     from llama_index.core import VectorStoreIndex
 
 from backend.config import settings as cfg
-
 
 _embedding_configured = False
 
@@ -27,7 +26,7 @@ def configure_embedding_settings() -> None:
     _embedding_configured = True
 
 
-def _faiss_storage(persist_dir: Optional[Path] = None):
+def _faiss_storage(persist_dir: Path | None = None):
     import faiss
     from llama_index.core import StorageContext
     from llama_index.vector_stores.faiss import FaissVectorStore
@@ -88,7 +87,7 @@ def _qdrant_storage():
     return StorageContext.from_defaults(vector_store=vector_store)
 
 
-def _get_storage(persist_dir: Optional[Path] = None):
+def _get_storage(persist_dir: Path | None = None):
     if cfg.vector_store == "qdrant":
         return _qdrant_storage()
     return _faiss_storage(persist_dir)
@@ -107,7 +106,7 @@ def build_index(documents: list):
 
 
 def load_index() -> Optional["VectorStoreIndex"]:
-    from llama_index.core import load_index_from_storage, VectorStoreIndex
+    from llama_index.core import VectorStoreIndex, load_index_from_storage
 
     configure_embedding_settings()
     if cfg.vector_store == "qdrant":
