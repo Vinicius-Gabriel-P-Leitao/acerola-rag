@@ -16,7 +16,14 @@ export const PROVIDER_LABELS: Record<Provider, string> = {
 export const PROVIDER_MODELS: Record<Provider, string[]> = {
 	openai: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'o3-mini'],
 	ollama: ['llama3.2', 'mistral', 'codellama', 'qwen2.5'],
-	gemini: ['gemini-3-flash-preview', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+	gemini: [
+		'gemini-3-flash-preview',
+		'gemini-2.5-pro',
+		'gemini-2.5-flash',
+		'gemini-2.0-pro',
+		'gemini-2.0-flash',
+		'gemini-2.0-flash-lite'
+	],
 	claude: ['claude-sonnet-4-6', 'claude-haiku-4-5-20251001', 'claude-opus-4-7']
 };
 
