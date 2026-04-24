@@ -75,6 +75,7 @@ def _build_engine():
     if cfg.langfuse_public_key and cfg.langfuse_secret_key:
         try:
             import os
+
             from langfuse import get_client  # type: ignore
             from openinference.instrumentation.llama_index import LlamaIndexInstrumentor  # type: ignore
 
@@ -104,7 +105,7 @@ def get_engine(session_id: str) -> Optional["BaseChatEngine"]:
     return _sessions[session_id]
 
 
-def refresh_engine(session_id: Optional[str] = None) -> None:
+def refresh_engine(session_id: str | None = None) -> None:
     global _index
     _index = None
     if session_id is not None:
@@ -113,14 +114,35 @@ def refresh_engine(session_id: Optional[str] = None) -> None:
         _sessions.clear()
 
 
-def query(question: str, session_id: str = "default") -> str:
+def query(
+    question: str,
+    session_id: str = "default",
+    extra_context: str | None = None,
+) -> tuple[str, list[dict]]:
     engine = get_engine(session_id)
     if engine is None:
-        return "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro."
-    response = engine.chat(question)
+        return "Nenhum documento indexado ainda. Faça upload de um arquivo primeiro.", []
+
+    prompt = question
+    if extra_context:
+        prompt = f"{question}\n\n---\nArquivos anexados pelo usuário:\n{extra_context}"
+
+    response = engine.chat(prompt)
+
     if _langfuse is not None:
         try:
             _langfuse.flush()
         except Exception:
             pass
-    return f"<ContentResponse>\n{str(response)}\n</ContentResponse>"
+
+    source_nodes = getattr(response, "source_nodes", [])
+    sources = [
+        {
+            "source_file": node.node.metadata.get("source", "desconhecido"),
+            "chunk_text": (node.node.get_content() or "")[:600],
+            "score": round(float(node.score or 0.0), 4),
+        }
+        for node in source_nodes
+    ]
+
+    return f"<ContentResponse>\n{str(response)}\n</ContentResponse>", sources

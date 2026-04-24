@@ -8,9 +8,9 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.api import ingestion_queue as iq
@@ -23,8 +23,10 @@ _FRONTEND_BUILD = Path(__file__).parent.parent / "frontend" / "build"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from backend.api.routes import load_persisted_settings
+    from backend.history import manager as hist
 
     load_persisted_settings()
+    hist.init(Path(__file__).parent.parent / "data" / "history.db")
     task = asyncio.create_task(iq.worker())
     yield
     task.cancel()
@@ -41,6 +43,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def _unhandled(request: Request, exc: Exception):
+    import logging
+    logging.getLogger("acerola").error("Unhandled error on %s: %s", request.url, exc, exc_info=True)
+    return JSONResponse(status_code=500, content={"detail": f"Erro interno: {type(exc).__name__}: {exc}"})
+
 
 app.include_router(router, prefix="/api/v1")
 

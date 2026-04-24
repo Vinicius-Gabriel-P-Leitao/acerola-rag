@@ -1,12 +1,11 @@
 from pathlib import Path
-from typing import List, Optional
 
 import easyocr
 
-_reader: Optional[easyocr.Reader] = None
+_reader: easyocr.Reader | None = None
 
 
-def _get_reader(languages: List[str] = ["en", "pt"]) -> easyocr.Reader:
+def _get_reader(languages: list[str] = ["en", "pt"]) -> easyocr.Reader:
     global _reader
 
     if _reader is None:
@@ -14,7 +13,7 @@ def _get_reader(languages: List[str] = ["en", "pt"]) -> easyocr.Reader:
     return _reader
 
 
-def extract_text(image_path: Path, languages: List[str] = ["en", "pt"]) -> str:
+def extract_text(image_path: Path, languages: list[str] = ["en", "pt"]) -> str:
     """Extrai texto de imagem via EasyOCR (OpenCV internamente)."""
 
     reader = _get_reader(languages)

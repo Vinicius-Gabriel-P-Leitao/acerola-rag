@@ -11,25 +11,29 @@ def setup_function():
 
 def test_query_returns_no_index_message_when_no_index():
     with patch("backend.rag.engine.get_or_create_index", return_value=None):
-        result = query("Qual é o método X?")
-    assert "upload" in result.lower() or "nenhum" in result.lower()
+        answer, sources = query("Qual é o método X?")
+    assert "upload" in answer.lower() or "nenhum" in answer.lower()
+    assert sources == []
 
 
 def test_query_returns_engine_response():
     mock_response = MagicMock()
     mock_response.__str__ = lambda self: "resposta gerada"
+    mock_response.source_nodes = []
     mock_engine = MagicMock()
     mock_engine.chat.return_value = mock_response
 
     with patch("backend.rag.engine._build_engine", return_value=mock_engine):
-        result = query("pergunta qualquer", session_id="test")
+        answer, sources = query("pergunta qualquer", session_id="test")
 
-    assert result == "<ContentResponse>\nresposta gerada\n</ContentResponse>"
+    assert answer == "<ContentResponse>\nresposta gerada\n</ContentResponse>"
+    assert sources == []
 
 
 def test_query_uses_chat_not_query():
     mock_response = MagicMock()
     mock_response.__str__ = lambda self: "ok"
+    mock_response.source_nodes = []
     mock_engine = MagicMock()
     mock_engine.chat.return_value = mock_response
 
@@ -38,6 +42,42 @@ def test_query_uses_chat_not_query():
 
     mock_engine.chat.assert_called_once_with("pergunta")
     mock_engine.query.assert_not_called()
+
+
+def test_query_with_extra_context_appends_to_prompt():
+    mock_response = MagicMock()
+    mock_response.__str__ = lambda self: "ok"
+    mock_response.source_nodes = []
+    mock_engine = MagicMock()
+    mock_engine.chat.return_value = mock_response
+
+    with patch("backend.rag.engine._build_engine", return_value=mock_engine):
+        query("pergunta", session_id="test", extra_context="texto do anexo")
+
+    called_with = mock_engine.chat.call_args[0][0]
+    assert "pergunta" in called_with
+    assert "texto do anexo" in called_with
+
+
+def test_query_returns_sources_from_source_nodes():
+    mock_node = MagicMock()
+    mock_node.node.metadata = {"source": "doc.pdf"}
+    mock_node.node.get_content.return_value = "trecho relevante"
+    mock_node.score = 0.9
+
+    mock_response = MagicMock()
+    mock_response.__str__ = lambda self: "resposta"
+    mock_response.source_nodes = [mock_node]
+    mock_engine = MagicMock()
+    mock_engine.chat.return_value = mock_response
+
+    with patch("backend.rag.engine._build_engine", return_value=mock_engine):
+        _, sources = query("pergunta", session_id="test")
+
+    assert len(sources) == 1
+    assert sources[0]["source_file"] == "doc.pdf"
+    assert sources[0]["chunk_text"] == "trecho relevante"
+    assert sources[0]["score"] == round(0.9, 4)
 
 
 def test_refresh_engine_clears_all_sessions():

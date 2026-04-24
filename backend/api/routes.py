@@ -1,32 +1,41 @@
 import shutil
+import tempfile
+import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from backend.api import ingestion_queue as iq
 from backend.api.dtos import (
+    ConversationDetailDTO,
     DeleteDocumentResponse,
     DocumentContentResponse,
     DocumentListResponse,
     HealthResponse,
+    HistoryListResponse,
+    HistorySearchResponse,
     IndexTextRequest,
     IndexTextResponse,
     JobCreatedDTO,
     JobInfoDTO,
     LLMSettingsRequest,
     LLMSettingsResponse,
-    QueryRequest,
+    MessageDTO,
     QueryResponse,
+    RagSourceDTO,
     UploadResponse,
     UploadStatusResponse,
 )
 from backend.config import set_llm_override
 from backend.config import settings as cfg
-from backend.rag.engine import query, refresh_engine
+from backend.rag.engine import query as rag_query
+from backend.rag.engine import refresh_engine
 
 router = APIRouter()
 
 _ALLOWED = {".pdf", ".docx", ".doc", ".txt", ".md"}
+_MAX_ATTACH = 5
+_MAX_ATTACH_CHARS = 6000  # chars per file sent to context
 
 
 # ── Upload ────────────────────────────────────────────────────────────────────
@@ -76,7 +85,6 @@ async def upload_status():
 @router.get("/upload/status/{job_id}", response_model=JobInfoDTO)
 async def upload_job_status(job_id: str):
     job = iq.get_job(job_id)
-
     if not job:
         raise HTTPException(404, "Job não encontrado")
     return JobInfoDTO(
@@ -123,7 +131,6 @@ async def delete_document(source: str):
 async def index_text(req: IndexTextRequest):
     if not req.title.strip():
         raise HTTPException(400, "O título não pode ser vazio")
-
     if not req.content.strip():
         raise HTTPException(400, "O conteúdo não pode ser vazio")
 
@@ -140,18 +147,144 @@ async def index_text(req: IndexTextRequest):
 # ── Query ─────────────────────────────────────────────────────────────────────
 
 
+def _extract_file_text(upload: UploadFile) -> tuple[str, dict]:
+    """Extrai texto de um arquivo anexado para uso inline no contexto."""
+    from backend.ingestion.loader import load_document
+
+    filename = upload.filename or "anexo"
+    suffix = Path(filename).suffix.lower()
+
+    if suffix not in _ALLOWED:
+        raise HTTPException(400, f"Tipo de anexo não suportado: {suffix}")
+
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        shutil.copyfileobj(upload.file, tmp)
+        tmp_path = Path(tmp.name)
+
+    try:
+        doc = load_document(tmp_path)
+        text = doc.text[:_MAX_ATTACH_CHARS]
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    meta = {
+        "name": filename,
+        "type": suffix.lstrip("."),
+        "size_bytes": upload.size or 0,
+    }
+    return text, meta
+
+
 @router.post("/query", response_model=QueryResponse)
-async def query_documents(req: QueryRequest):
+async def query_documents(
+    question: str = Form(...),
+    conversation_id: str = Form(default=""),
+    files: list[UploadFile] = File(default=[]),
+):
     if not cfg.is_llm_configured():
         raise HTTPException(
-            status_code=422,
-            detail=(
-                f"Modelo não configurado corretamente para o provider "
-                f"'{cfg.get_provider()}'. Verifique a API key no painel lateral."
-            ),
+            422,
+            f"Modelo não configurado corretamente para o provider "
+            f"'{cfg.get_provider()}'. Verifique a API key no painel lateral.",
         )
-    answer = query(req.question, session_id=req.session_id)
-    return QueryResponse(answer=answer)
+
+    if len(files) > _MAX_ATTACH:
+        raise HTTPException(400, f"Máximo de {_MAX_ATTACH} arquivos por conversa")
+
+    conv_id = conversation_id.strip() or str(uuid.uuid4())
+
+    # Process attached files
+    extra_parts: list[str] = []
+    attached_meta: list[dict] = []
+    for upload in files:
+        try:
+            text, meta = _extract_file_text(upload)
+            extra_parts.append(f"[{meta['name']}]\n{text}")
+            attached_meta.append(meta)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(422, f"Erro ao processar '{upload.filename}': {exc}") from exc
+
+    extra_context = "\n\n".join(extra_parts) if extra_parts else None
+
+    answer, sources = rag_query(question, session_id=conv_id, extra_context=extra_context)
+
+    # Persist to history
+    from backend.history import manager as hist
+
+    title = question[:60].strip()
+    hist.create_conversation(conv_id, title)
+    hist.save_message(conv_id, "user", question, attached_files=attached_meta)
+    asst_msg_id = hist.save_message(conv_id, "assistant", answer)
+    hist.save_rag_sources(conv_id, asst_msg_id, sources)
+
+    return QueryResponse(
+        answer=answer,
+        conversation_id=conv_id,
+        sources=[RagSourceDTO(**s) for s in sources],
+    )
+
+
+# ── History ───────────────────────────────────────────────────────────────────
+
+
+@router.get("/history", response_model=HistoryListResponse)
+async def list_history():
+    from backend.api.dtos import ConversationDTO
+    from backend.history import manager as hist
+
+    convs = hist.list_conversations()
+    return HistoryListResponse(conversations=[ConversationDTO(**c) for c in convs])
+
+
+@router.get("/history/search", response_model=HistorySearchResponse)
+async def search_history(q: str = ""):
+    from backend.history import manager as hist
+
+    results = hist.search_conversations(q)
+    return HistorySearchResponse(conversations=results)
+
+
+@router.get("/history/{conversation_id}", response_model=ConversationDetailDTO)
+async def get_conversation(conversation_id: str):
+    from backend.history import manager as hist
+
+    messages_raw = hist.get_messages(conversation_id)
+    if not messages_raw:
+        raise HTTPException(404, "Conversa não encontrada")
+
+    sources_raw = hist.get_rag_sources(conversation_id)
+
+    messages = [
+        MessageDTO(
+            id=m["id"],
+            role=m["role"],
+            content=m["content"],
+            created_at=m["created_at"],
+            attached_files=m.get("attached_files", []),
+        )
+        for m in messages_raw
+    ]
+    sources = [RagSourceDTO(**s) for s in sources_raw]
+
+    convs = hist.list_conversations(limit=1000)
+    title = next((c["title"] for c in convs if c["id"] == conversation_id), "Conversa")
+
+    return ConversationDetailDTO(
+        id=conversation_id,
+        title=title,
+        messages=messages,
+        sources=sources,
+    )
+
+
+@router.delete("/history/{conversation_id}")
+async def delete_history(conversation_id: str):
+    from backend.history import manager as hist
+
+    hist.delete_conversation(conversation_id)
+    return {"deleted": True}
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
@@ -165,9 +298,7 @@ def _save_settings() -> None:
 
     _SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     _SETTINGS_FILE.write_text(
-        json.dumps(
-            {"llm_provider": cfg.get_provider(), "llm_model": cfg.get_llm_model()}
-        ),
+        json.dumps({"llm_provider": cfg.get_provider(), "llm_model": cfg.get_llm_model()}),
         encoding="utf-8",
     )
 
