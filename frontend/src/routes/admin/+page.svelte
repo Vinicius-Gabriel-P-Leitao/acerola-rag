@@ -11,12 +11,7 @@
 	import DocumentViewerModal from './components/document-viewer-modal.svelte';
 	import DocumentQueueDialog from './components/document-queue-dialog.svelte';
 
-	import ShDialog from '$lib/components/sh-dialog/sh-dialog.svelte';
-	import ShDialogContent from '$lib/components/sh-dialog/sh-dialog-content.svelte';
-	import ShDialogHeader from '$lib/components/sh-dialog/sh-dialog-header.svelte';
-	import ShDialogTitle from '$lib/components/sh-dialog/sh-dialog-title.svelte';
-	import ShDialogDescription from '$lib/components/sh-dialog/sh-dialog-description.svelte';
-	import ShDialogFooter from '$lib/components/sh-dialog/sh-dialog-footer.svelte';
+	import ShResponsiveDialog from '$lib/components/sh-responsive-dialog/sh-responsive-dialog.svelte';
 	import ShButton from '$lib/components/sh-button/sh-button.svelte';
 	import ShSpinner from '$lib/components/sh-spinner/sh-spinner.svelte';
 
@@ -93,22 +88,20 @@
 <DocumentViewerModal bind:open={viewOpen} doc={viewDoc} loading={viewLoading} />
 <DocumentQueueDialog bind:open={queueOpen} />
 
-<ShDialog bind:open={deleteOpen}>
-	<ShDialogContent>
-		<ShDialogHeader>
-			<ShDialogTitle>Confirmar exclusão</ShDialogTitle>
+<ShResponsiveDialog bind:open={deleteOpen}>
+	{#snippet title()}
+		Confirmar exclusão
+	{/snippet}
 
-			<ShDialogDescription>
-				Deletar <strong>{deleteDoc?.source}</strong>? Esta ação é irreversível.
-			</ShDialogDescription>
-		</ShDialogHeader>
+	{#snippet description()}
+		Deletar <strong>{deleteDoc?.source}</strong>? Esta ação é irreversível.
+	{/snippet}
 
-		<ShDialogFooter>
-			<ShButton variant="outline" onclick={() => (deleteOpen = false)}>Cancelar</ShButton>
-			<ShButton variant="destructive" disabled={deleteLoading} onclick={confirmDelete}>
-				{#if deleteLoading}<ShSpinner class="mr-2 size-4" />{/if}
-				Confirmar
-			</ShButton>
-		</ShDialogFooter>
-	</ShDialogContent>
-</ShDialog>
+	{#snippet footer()}
+		<ShButton variant="outline" onclick={() => (deleteOpen = false)}>Cancelar</ShButton>
+		<ShButton variant="destructive" disabled={deleteLoading} onclick={confirmDelete}>
+			{#if deleteLoading}<ShSpinner class="mr-2 size-4" />{/if}
+			Confirmar
+		</ShButton>
+	{/snippet}
+</ShResponsiveDialog>

@@ -69,11 +69,17 @@ function createChatStore() {
 				if (pf.file) form.append('files', pf.file);
 			}
 
-			const data = await api.postForm<{
-				answer: string;
-				conversation_id: string;
-				sources: RagSource[];
-			}>('/query', form);
+			const data = await (pending.length === 0
+				? api.post<{
+						answer: string;
+						conversation_id: string;
+						sources: RagSource[];
+				  }>('/query', { question, conversation_id: state.conversationId })
+				: api.postForm<{
+						answer: string;
+						conversation_id: string;
+						sources: RagSource[];
+				  }>('/query', form));
 
 			_store.update((s) => {
 				const msgs = [...s.messages];

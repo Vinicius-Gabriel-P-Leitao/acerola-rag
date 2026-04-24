@@ -1,10 +1,6 @@
 <script lang="ts">
 	import { documentsStore } from '$lib/hooks/store/use-documents.hook';
-	import ShDialog from '$lib/components/sh-dialog/sh-dialog.svelte';
-	import ShDialogContent from '$lib/components/sh-dialog/sh-dialog-content.svelte';
-	import ShDialogHeader from '$lib/components/sh-dialog/sh-dialog-header.svelte';
-	import ShDialogTitle from '$lib/components/sh-dialog/sh-dialog-title.svelte';
-	import ShDialogFooter from '$lib/components/sh-dialog/sh-dialog-footer.svelte';
+	import ShResponsiveDialog from '$lib/components/sh-responsive-dialog/sh-responsive-dialog.svelte';
 	import ShButton from '$lib/components/sh-button/sh-button.svelte';
 
 	let { open = $bindable() } = $props();
@@ -17,9 +13,12 @@
 	};
 </script>
 
-<ShDialog bind:open>
-	<ShDialogContent class="sm:max-w-2xl">
-		<ShDialogHeader><ShDialogTitle>Fila de Processamento</ShDialogTitle></ShDialogHeader>
+<ShResponsiveDialog bind:open class="sm:max-w-2xl">
+	{#snippet title()}
+		Fila de Processamento
+	{/snippet}
+
+	{#snippet children()}
 		<div class="flex max-h-[60vh] flex-col gap-3 overflow-y-auto">
 			{#each $documentsStore.jobs as job (job.job_id)}
 				<div class="border-b pb-2">
@@ -31,9 +30,9 @@
 				</div>
 			{/each}
 		</div>
+	{/snippet}
 
-		<ShDialogFooter>
-			<ShButton variant="outline" onclick={() => (open = false)}>Fechar</ShButton>
-		</ShDialogFooter>
-	</ShDialogContent>
-</ShDialog>
+	{#snippet footer()}
+		<ShButton variant="outline" onclick={() => (open = false)}>Fechar</ShButton>
+	{/snippet}
+</ShResponsiveDialog>
