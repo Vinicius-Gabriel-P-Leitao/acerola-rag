@@ -59,5 +59,7 @@
 		</ShButton>
 	</div>
 
-	<pre class="overflow-x-auto p-4 text-sm"><code bind:this={codeEl} class="language-{lang}">{content}</code></pre>
+	<pre class="overflow-x-auto p-4 text-sm"><code bind:this={codeEl} class="language-{lang}"
+			>{content}</code
+		></pre>
 </div>

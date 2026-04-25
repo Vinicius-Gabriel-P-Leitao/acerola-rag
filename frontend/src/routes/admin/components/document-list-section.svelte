@@ -3,9 +3,10 @@
 	import ShInput from '$lib/components/sh-input/sh-input.svelte';
 	import ShButton from '$lib/components/sh-button/sh-button.svelte';
 	import ShSkeleton from '$lib/components/sh-skeleton/sh-skeleton.svelte';
-	// ShPagination removido se não estiver sendo usado no HTML abaixo
 	import EyeIcon from '@lucide/svelte/icons/eye';
 	import TrashIcon from '@lucide/svelte/icons/trash-2';
+	import ChevronLeftIcon from '@lucide/svelte/icons/chevron-left';
+	import ChevronRightIcon from '@lucide/svelte/icons/chevron-right';
 
 	let { onView, onDelete } = $props<{
 		onView: (source: string) => void;
@@ -68,6 +69,35 @@
 					</ShButton>
 				</div>
 			{/each}
+		</div>
+	{/if}
+
+	{#if $documentsStore.total > $documentsStore.pageSize}
+		{@const totalPages = Math.ceil($documentsStore.total / $documentsStore.pageSize)}
+		<div class="mt-3 flex items-center justify-between border-t border-border pt-3">
+			<span class="text-xs text-muted-foreground">
+				Página {$documentsStore.page} de {totalPages}
+			</span>
+			<div class="flex items-center gap-1">
+				<ShButton
+					variant="outline"
+					size="icon-sm"
+					disabled={$documentsStore.page <= 1}
+					onclick={() => documentsStore.setPage($documentsStore.page - 1)}
+					aria-label="Página anterior"
+				>
+					<ChevronLeftIcon class="size-3.5" />
+				</ShButton>
+				<ShButton
+					variant="outline"
+					size="icon-sm"
+					disabled={$documentsStore.page >= totalPages}
+					onclick={() => documentsStore.setPage($documentsStore.page + 1)}
+					aria-label="Próxima página"
+				>
+					<ChevronRightIcon class="size-3.5" />
+				</ShButton>
+			</div>
 		</div>
 	{/if}
 </section>

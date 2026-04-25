@@ -90,7 +90,7 @@ function createDocumentsStore() {
 						toast.success(`Arquivo processado: ${job.filename}`);
 						shouldRefreshPage = true;
 
-						// FIXME: Else if é debito tecnico, melhorar 
+						// FIXME: Else if é debito tecnico, melhorar
 					} else if (prevStatus && prevStatus !== 'error' && job.status === 'error') {
 						toast.error(`Erro ao processar arquivo: ${job.filename}`);
 					}

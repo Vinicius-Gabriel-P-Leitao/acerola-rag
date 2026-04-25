@@ -8,17 +8,20 @@ services:
     restart: unless-stopped
     networks:
       - traefik_proxy
+    ports:
+      - "6333:6333"
+      - "6334:6334"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.qdrant.rule=Host(`qdrant.vinicius-gpl.com`)"
       - "traefik.http.routers.qdrant.entrypoints=web"
       - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
-      - "traefik.http.routers.qdrant.middlewares=auth"
+      - "traefik.http.routers.qdrant.middlewares=authelia-forwardauth@docker" 
 
   rag:
     build:
       context: ..
-      dockerfile: container/dockerfile
+      dockerfile: docker/dockerfile
     container_name: acerola-rag
     command: python -m backend.main
     volumes:
@@ -27,7 +30,7 @@ services:
       - .env
     depends_on:
       - qdrant
-    restart: unless-stopped
+    restart: unless-stopped 
     networks:
       - traefik_proxy
     labels:
@@ -35,7 +38,7 @@ services:
       - "traefik.http.routers.rag.rule=Host(`rag.vinicius-gpl.com`)"
       - "traefik.http.routers.rag.entrypoints=web"
       - "traefik.http.services.rag.loadbalancer.server.port=8000"
-      - "traefik.http.routers.rag.middlewares=auth"
+      - "traefik.http.routers.rag.middlewares=authelia-forwardauth@docker"
 
 volumes:
   qdrant_data:

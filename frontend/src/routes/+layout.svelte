@@ -80,13 +80,19 @@
 		style="box-shadow: var(--shadow-sidebar);"
 	>
 		<!-- Logo + toggle -->
-		<div class="flex h-14 items-center gap-2 border-b border-sidebar-border px-3">
+		<div
+			class="flex h-14 items-center gap-2 border-b border-sidebar-border
+				{sidebarOpen ? 'px-3' : 'justify-center'}"
+		>
 			{#if sidebarOpen}
 				<img src={faviconPng} alt="Acerola RAG" class="h-6 w-6 shrink-0" />
-				<span class="flex-1 truncate text-base font-semibold text-sidebar-foreground">Acerola RAG</span>
+				<span class="flex-1 truncate text-base font-semibold text-sidebar-foreground"
+					>Acerola RAG</span
+				>
 			{/if}
 			<button
-				class="ml-auto flex size-7 items-center justify-center rounded-md text-sidebar-foreground opacity-60 hover:bg-sidebar-accent hover:opacity-100"
+				class="flex size-7 items-center justify-center rounded-md text-sidebar-foreground opacity-60 hover:bg-sidebar-accent hover:opacity-100
+					{sidebarOpen ? 'ml-auto' : ''}"
 				onclick={() => (sidebarOpen = !sidebarOpen)}
 				title="Alternar sidebar"
 			>
@@ -98,7 +104,8 @@
 		<div class="px-2 pt-2">
 			<button
 				onclick={newConversation}
-				class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+				class="flex w-full items-center gap-2 rounded-md py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
+					{sidebarOpen ? 'px-2' : 'justify-center px-0'}"
 			>
 				<PlusIcon class="size-4 shrink-0" />
 				{#if sidebarOpen}<span>Nova conversa</span>{/if}
@@ -110,8 +117,9 @@
 			{#each navItems as { href, label, Icon } (href)}
 				<a
 					{href}
-					class="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
-						{page.url.pathname.startsWith(href) ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}"
+					class="flex items-center gap-2 rounded-md py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
+						{page.url.pathname.startsWith(href) ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
+						{sidebarOpen ? 'px-2' : 'justify-center px-0'}"
 					title={sidebarOpen ? undefined : label}
 				>
 					<Icon class="size-4 shrink-0" />
@@ -123,7 +131,9 @@
 		<!-- History list -->
 		{#if sidebarOpen}
 			<div class="mt-3 min-h-0 flex-1 overflow-hidden px-2">
-				<p class="mb-1 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+				<p
+					class="mb-1 px-1 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
+				>
 					Últimas conversas
 				</p>
 
@@ -133,7 +143,7 @@
 					bind:value={searchInput}
 					oninput={onSearchInput}
 					placeholder="Buscar…"
-					class="mb-1.5 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+					class="mb-1.5 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-ring focus:outline-none"
 				/>
 
 				<div class="flex flex-col gap-0.5 overflow-y-auto" style="max-height: calc(100dvh - 260px)">
@@ -149,10 +159,14 @@
 							class="group flex w-full cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent
 								{$chatStore.conversationId === conv.id ? 'bg-sidebar-accent' : ''}"
 						>
-							<span class="min-w-0 flex-1 truncate text-xs text-sidebar-foreground">{conv.title}</span>
-							<span class="shrink-0 text-[10px] text-muted-foreground">{formatRelative(conv.updated_at)}</span>
+							<span class="min-w-0 flex-1 truncate text-xs text-sidebar-foreground"
+								>{conv.title}</span
+							>
+							<span class="shrink-0 text-[10px] text-muted-foreground"
+								>{formatRelative(conv.updated_at)}</span
+							>
 							<button
-								class="hidden size-4 shrink-0 items-center justify-center text-muted-foreground hover:text-destructive group-hover:flex"
+								class="hidden size-4 shrink-0 items-center justify-center text-muted-foreground group-hover:flex hover:text-destructive"
 								onclick={(e) => removeConversation(e, conv.id)}
 								title="Apagar conversa"
 							>

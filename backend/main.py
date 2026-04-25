@@ -1,5 +1,7 @@
 import asyncio
+import logging
 import sys
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -7,13 +9,62 @@ _ROOT = Path(__file__).parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+
+# ── Logging setup ─────────────────────────────────────────────────────────────
+
+def _setup_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)-8s  %(name)s — %(message)s",
+        force=True,
+    )
+
+    # Silencia libs verbosas que poluem o console
+    for _noisy in (
+        "httpx", "httpcore",
+        "llama_index", "llama_index.core",
+        "openai", "openai._base_client",
+        "google", "google.auth",
+        "urllib3", "multipart",
+    ):
+        logging.getLogger(_noisy).setLevel(logging.WARNING)
+
+    _thread_log = logging.getLogger("acerola.thread")
+
+    def _thread_excepthook(args: threading.ExceptHookArgs) -> None:
+        exc = args.exc_value
+        tname = args.thread.name if args.thread else "thread"
+        ename = type(exc).__name__ if exc else "UnknownError"
+        emsg = str(exc) if exc else ""
+
+        # Erros de API conhecidos: mostra só o essencial, sem traceback
+        _api_errs = ("RateLimitError", "AuthenticationError", "APIConnectionError",
+                     "APIError", "ResourceExhausted")
+        if any(k in ename for k in _api_errs) or "429" in emsg:
+            short = emsg.split("\n")[0][:300]
+            _thread_log.warning("(%s) %s: %s", tname, ename, short)
+            return
+
+        # Outros erros: traceback condensado (últimos 3 frames)
+        import traceback as _tb
+        frames = _tb.format_exception(args.exc_type, args.exc_value, args.exc_traceback)
+        condensed = "".join(frames[-3:]) if len(frames) > 3 else "".join(frames)
+        _thread_log.error("(%s) %s\n%s", tname, ename, condensed.rstrip())
+
+    threading.excepthook = _thread_excepthook
+
+
+_setup_logging()
+
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.api import ingestion_queue as iq
+from backend.api.dtos import ErrorResponse
 from backend.api.routes import router
 from backend.config import settings
 
@@ -45,10 +96,46 @@ app.add_middleware(
 )
 
 @app.exception_handler(Exception)
-async def _unhandled(request: Request, exc: Exception):
-    import logging
+async def _unhandled_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorResponse(
+                error=str(exc.detail),
+                code=f"HTTP_{exc.status_code}"
+            ).model_dump()
+        )
+
     logging.getLogger("acerola").error("Unhandled error on %s: %s", request.url, exc, exc_info=True)
-    return JSONResponse(status_code=500, content={"detail": f"Erro interno: {type(exc).__name__}: {exc}"})
+    return JSONResponse(
+        status_code=500,
+        content=ErrorResponse(
+            error="Erro interno do servidor",
+            code="INTERNAL_SERVER_ERROR",
+            detail=f"{type(exc).__name__}: {exc}"
+        ).model_dump()
+    )
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=ErrorResponse(
+            error=str(exc.detail),
+            code=f"HTTP_{exc.status_code}"
+        ).model_dump()
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content=ErrorResponse(
+            error="Erro de validação nos dados enviados",
+            code="VALIDATION_ERROR",
+            detail=exc.errors()
+        ).model_dump()
+    )
 
 
 app.include_router(router, prefix="/api/v1")

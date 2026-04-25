@@ -17,10 +17,11 @@ PROVIDER_MODELS: dict[str, list[str]] = {
     "ollama": ["llama3.2", "mistral", "codellama", "qwen2.5"],
     "gemini": [
         "gemini-3-flash-preview",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.0-pro",
         "gemini-2.0-flash",
         "gemini-2.0-flash-lite",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
     ],
     "claude": ["claude-sonnet-4-6", "claude-haiku-4-5-20251001", "claude-opus-4-7"],
 }
@@ -51,14 +52,12 @@ class OpenAISDKLLM(CustomLLM):
             kwargs["base_url"] = self.base_url
         return OpenAI(**kwargs)
 
-    def complete(
-        self, prompt: str, formatted: bool = False, **kwargs: Any
-    ) -> CompletionResponse:
+    def complete(self, prompt: str, formatted: bool = False, **kwargs: Any) -> CompletionResponse:
         messages = []
         if self.system_prompt:
             messages.append({"role": "system", "content": self.system_prompt})
         messages.append({"role": "user", "content": prompt})
-        
+
         response = self._client().chat.completions.create(
             model=self.model,
             messages=messages,
@@ -67,9 +66,7 @@ class OpenAISDKLLM(CustomLLM):
         )
         return CompletionResponse(text=response.choices[0].message.content or "")
 
-    def stream_complete(
-        self, prompt: str, formatted: bool = False, **kwargs: Any
-    ) -> CompletionResponseGen:
+    def stream_complete(self, prompt: str, formatted: bool = False, **kwargs: Any) -> CompletionResponseGen:
         messages = []
         if self.system_prompt:
             messages.append({"role": "system", "content": self.system_prompt})
@@ -109,9 +106,7 @@ class AnthropicLLM(CustomLLM):
             num_output=self.max_tokens,
         )
 
-    def complete(
-        self, prompt: str, formatted: bool = False, **kwargs: Any
-    ) -> CompletionResponse:
+    def complete(self, prompt: str, formatted: bool = False, **kwargs: Any) -> CompletionResponse:
         from anthropic import Anthropic
 
         req_kwargs = {
@@ -126,9 +121,7 @@ class AnthropicLLM(CustomLLM):
         text = "".join(getattr(block, "text", "") for block in message.content)
         return CompletionResponse(text=text)
 
-    def stream_complete(
-        self, prompt: str, formatted: bool = False, **kwargs: Any
-    ) -> CompletionResponseGen:
+    def stream_complete(self, prompt: str, formatted: bool = False, **kwargs: Any) -> CompletionResponseGen:
         from anthropic import Anthropic
 
         req_kwargs = {
@@ -195,6 +188,4 @@ def create_llm(
             max_tokens=max_tokens,
             system_prompt=system_prompt,
         )
-    raise ValueError(
-        f"Provider desconhecido: '{provider}'. Use: openai | ollama | gemini | claude"
-    )
+    raise ValueError(f"Provider desconhecido: '{provider}'. Use: openai | ollama | gemini | claude")

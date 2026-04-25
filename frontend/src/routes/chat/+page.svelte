@@ -16,6 +16,8 @@
 	import ShSpinner from '$lib/components/sh-spinner/sh-spinner.svelte';
 	import ShCodeBlock from '$lib/components/sh-code-block/sh-code-block.svelte';
 	import ShExpandable from '$lib/components/sh-expandable/sh-expandable.svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import SourcesModal from './components/sources-modal.svelte';
 	import SendIcon from '@lucide/svelte/icons/send';
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import UserIcon from '@lucide/svelte/icons/user';
@@ -24,6 +26,7 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
 	import BookOpenIcon from '@lucide/svelte/icons/book-open';
+	import MaximizeIcon from '@lucide/svelte/icons/maximize-2';
 	import { AI_CONTRACT } from '$lib/contracts/ai.contract';
 
 	type MessageBlock = {
@@ -38,6 +41,7 @@
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 	let modelMenuOpen = $state(false);
 	let sourcesOpen = $state(false);
+	let sourcesModalOpen = $state(false);
 
 	const headerStore = useHeader();
 	headerStore.action = headerAction;
@@ -224,7 +228,9 @@
 			<div class="flex flex-1 flex-col items-center justify-center gap-6 px-4">
 				<div class="text-center">
 					<h1 class="text-2xl font-semibold text-foreground">{greeting()}, Vinicius</h1>
-					<p class="mt-1 text-sm text-muted-foreground">Pergunte qualquer coisa sobre sua documentação.</p>
+					<p class="mt-1 text-sm text-muted-foreground">
+						Pergunte qualquer coisa sobre sua documentação.
+					</p>
 				</div>
 
 				<div class="w-full max-w-xl">
@@ -234,7 +240,7 @@
 		{:else}
 			<!-- Messages -->
 			<div bind:this={messagesEl} class="flex-1 overflow-x-hidden overflow-y-auto py-6">
-				<div class="mx-auto box-border w-full min-w-0 max-w-full px-4 md:max-w-[50%] md:min-w-80">
+				<div class="mx-auto box-border w-full max-w-full min-w-0 px-4 md:max-w-[50%] md:min-w-80">
 					{#each renderedMessages as msg, i (i)}
 						<div class="mb-4 flex gap-3 {msg.role === 'user' ? 'flex-row-reverse' : ''}">
 							<div class="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
@@ -266,22 +272,30 @@
 									class="rounded-xl px-4 py-2.5 text-sm
 										{msg.role === 'user'
 										? 'bg-primary text-primary-foreground'
-										: 'border border-border bg-card text-card-foreground'}"
+										: msg.isError
+											? 'border border-destructive/50 bg-destructive/10 text-destructive'
+											: 'border border-border bg-card text-card-foreground'}"
 								>
-									{#if msg.role === 'assistant' && msg.content === ''}
+									{#if msg.role === 'assistant' && msg.content === '' && !msg.isError}
 										<ShSkeleton class="h-4 w-32" />
 									{:else if msg.role === 'assistant'}
-										<ShExpandable threshold={300}>
-											<div class="prose prose-sm max-w-none dark:prose-invert">
-												{#each msg.blocks as block (block.content)}
-													{#if block.type === 'code'}
-														<ShCodeBlock lang={block.lang} content={block.content} />
-													{:else}
-														{@html block.content}
-													{/if}
-												{/each}
+										{#if msg.isError}
+											<div class="flex items-center gap-2 font-medium">
+												<span>❌ {msg.content}</span>
 											</div>
-										</ShExpandable>
+										{:else}
+											<ShExpandable threshold={300}>
+												<div class="prose prose-sm dark:prose-invert max-w-none">
+													{#each msg.blocks as block (block.content)}
+														{#if block.type === 'code'}
+															<ShCodeBlock lang={block.lang} content={block.content} />
+														{:else}
+															{@html block.content}
+														{/if}
+													{/each}
+												</div>
+											</ShExpandable>
+										{/if}
 									{:else}
 										{msg.content}
 									{/if}
@@ -294,7 +308,7 @@
 
 			<!-- Input bottom -->
 			<div class="shrink-0 border-t border-border bg-background py-3">
-				<div class="mx-auto w-full min-w-0 max-w-full px-4 md:max-w-[50%] md:min-w-80">
+				<div class="mx-auto w-full max-w-full min-w-0 px-4 md:max-w-[50%] md:min-w-80">
 					{@render inputArea()}
 				</div>
 			</div>
@@ -303,35 +317,53 @@
 
 	<!-- Fontes da conversa — painel lateral -->
 	{#if sourcesOpen && $chatStore.sources.length > 0}
-		<aside
-			class="hidden w-72 shrink-0 flex-col border-l border-border bg-card md:flex"
-		>
+		<aside class="hidden w-72 shrink-0 flex-col border-l border-border bg-card md:flex">
 			<div class="flex items-center justify-between border-b border-border px-4 py-3">
 				<p class="text-sm font-semibold">Fontes da conversa</p>
-				<button
-					class="text-muted-foreground hover:text-foreground"
-					onclick={() => (sourcesOpen = false)}
-				>
-					<XIcon class="size-4" />
-				</button>
+				<div class="flex items-center gap-1">
+					<button
+						class="text-muted-foreground hover:text-foreground"
+						title="Ver todas as fontes"
+						onclick={() => (sourcesModalOpen = true)}
+					>
+						<MaximizeIcon class="size-4" />
+					</button>
+					<button
+						class="text-muted-foreground hover:text-foreground"
+						onclick={() => (sourcesOpen = false)}
+					>
+						<XIcon class="size-4" />
+					</button>
+				</div>
 			</div>
 			<div class="flex-1 overflow-y-auto p-3">
-				{#each $chatStore.sources as src, i (i)}
-					<div class="mb-3 rounded-lg border border-border bg-background p-3 text-xs">
-						<div class="mb-1 flex items-center justify-between gap-2">
-							<span class="flex items-center gap-1 font-medium text-foreground">
-								<FileTextIcon class="size-3 shrink-0 text-muted-foreground" />
-								<span class="truncate">{src.source_file}</span>
-							</span>
-							<span class="shrink-0 text-muted-foreground">{(src.score * 100).toFixed(0)}%</span>
+				<Tooltip.Provider>
+					{#each $chatStore.sources as src, i (i)}
+						<div class="mb-3 rounded-lg border border-border bg-background p-3 text-xs">
+							<div class="mb-1 flex items-center justify-between gap-2">
+								<span class="flex min-w-0 items-center gap-1 font-medium text-foreground">
+									<FileTextIcon class="size-3 shrink-0 text-muted-foreground" />
+									<Tooltip.Root>
+										<Tooltip.Trigger class="min-w-0 cursor-default">
+											<span class="block truncate">{src.source_file}</span>
+										</Tooltip.Trigger>
+										<Tooltip.Content side="top">
+											{src.source_file}
+										</Tooltip.Content>
+									</Tooltip.Root>
+								</span>
+								<span class="shrink-0 text-muted-foreground">{(src.score * 100).toFixed(0)}%</span>
+							</div>
+							<p class="line-clamp-4 text-muted-foreground">{src.chunk_text}</p>
 						</div>
-						<p class="line-clamp-4 text-muted-foreground">{src.chunk_text}</p>
-					</div>
-				{/each}
+					{/each}
+				</Tooltip.Provider>
 			</div>
 		</aside>
 	{/if}
 </div>
+
+<SourcesModal bind:open={sourcesModalOpen} sources={$chatStore.sources} />
 
 {#snippet inputArea()}
 	<!-- Pending file chips -->

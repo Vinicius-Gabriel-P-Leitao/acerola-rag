@@ -122,3 +122,10 @@ class LLMSettingsResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+
+class ErrorResponse(BaseModel):
+    success: bool = False
+    error: str
+    code: str | None = None
+    detail: Any | None = None

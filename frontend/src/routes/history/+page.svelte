@@ -57,7 +57,7 @@
 </script>
 
 <div class="flex flex-1 flex-col overflow-y-auto">
-	<div class="mx-auto flex w-full min-w-0 max-w-2xl flex-col gap-4 p-4">
+	<div class="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-4 p-4">
 		<div class="flex items-center gap-3">
 			<ShInput
 				class="flex-1"
@@ -76,7 +76,9 @@
 		{:else if $historyStore.conversations.length === 0}
 			<div class="flex flex-col items-center gap-2 py-20 text-muted-foreground">
 				<MessageSquareIcon class="size-10 opacity-30" />
-				<p class="text-sm">{searchInput ? 'Nenhum resultado encontrado.' : 'Nenhuma conversa ainda.'}</p>
+				<p class="text-sm">
+					{searchInput ? 'Nenhum resultado encontrado.' : 'Nenhuma conversa ainda.'}
+				</p>
 			</div>
 		{:else}
 			<div class="flex flex-col gap-2">
@@ -84,10 +86,7 @@
 					<div
 						class="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-accent/40"
 					>
-						<button
-							class="min-w-0 flex-1 text-left"
-							onclick={() => openConversation(conv.id)}
-						>
+						<button class="min-w-0 flex-1 text-left" onclick={() => openConversation(conv.id)}>
 							<p class="truncate text-sm font-medium text-foreground">{conv.title}</p>
 							<p class="mt-0.5 text-xs text-muted-foreground">{formatDate(conv.updated_at)}</p>
 						</button>

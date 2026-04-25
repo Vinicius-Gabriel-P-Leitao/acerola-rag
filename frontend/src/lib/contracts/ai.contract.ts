@@ -4,8 +4,8 @@
  */
 
 export const AI_CONTRACT = {
-    TAGS: {
-        CONTENT_RESPONSE_OPEN: '<ContentResponse>',
-        CONTENT_RESPONSE_CLOSE: '</ContentResponse>'
-    }
+	TAGS: {
+		CONTENT_RESPONSE_OPEN: '<ContentResponse>',
+		CONTENT_RESPONSE_CLOSE: '</ContentResponse>'
+	}
 };

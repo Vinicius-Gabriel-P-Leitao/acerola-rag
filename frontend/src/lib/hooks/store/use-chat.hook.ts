@@ -28,6 +28,7 @@ export interface Message {
 	role: 'user' | 'assistant';
 	content: string;
 	attached_files?: AttachedFile[];
+	isError?: boolean;
 }
 
 interface ChatState {
@@ -56,6 +57,7 @@ function createChatStore() {
 	async function send(question: string) {
 		const state = get(_store);
 		const pending = state.pendingFiles;
+		const convId = state.conversationId ?? crypto.randomUUID();
 
 		_store.update((s) => ({
 			...s,
@@ -65,7 +67,8 @@ function createChatStore() {
 			],
 			loading: true,
 			error: null,
-			pendingFiles: []
+			pendingFiles: [],
+			conversationId: convId
 		}));
 
 		_store.update((s) => ({
@@ -78,48 +81,49 @@ function createChatStore() {
 		try {
 			const form = new FormData();
 			form.append('question', question);
-			if (state.conversationId) form.append('conversation_id', state.conversationId);
+			form.append('conversation_id', convId);
 			for (const pf of pending) {
 				if (pf.file) form.append('files', pf.file);
 			}
 
-			// Inicia o consumo do stream
 			await api.postFormStream(
 				'/query/stream',
 				form,
 				(token) => {
 					_store.update((s) => {
 						const msgs = [...s.messages];
-						msgs[idx] = { 
-                            ...msgs[idx], 
-                            content: msgs[idx].content + token 
-                        };
+						msgs[idx] = {
+							...msgs[idx],
+							content: msgs[idx].content + token
+						};
 						return { ...s, messages: msgs };
 					});
 				},
 				(error) => {
 					_store.update((s) => {
 						const msgs = [...s.messages];
-						msgs[idx] = { 
-                            ...msgs[idx], 
-                            content: `❌ Erro: ${error.message}` 
-                        };
+						msgs[idx] = {
+							...msgs[idx],
+							content: error.message,
+							isError: true
+						};
 						return { ...s, messages: msgs, loading: false };
 					});
 				}
 			);
 
-			_store.update((s) => ({ ...s, loading: false }));
-
-			// Nota: Como o stream atual retorna apenas o texto, 
-			// a persistência de sources/conv_id precisará de ajuste 
-			// no backend para enviar um JSON final ou header.
-			// Por enquanto, o chat funcional com streaming de texto está garantido.
+			// Busca sources do histórico após o stream terminar
+			try {
+				const detail = await historyStore.getDetail(convId);
+				_store.update((s) => ({ ...s, sources: detail.sources, loading: false }));
+			} catch {
+				_store.update((s) => ({ ...s, loading: false }));
+			}
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Erro ao consultar a API';
 			_store.update((s) => {
 				const msgs = [...s.messages];
-				msgs[idx] = { role: 'assistant', content: `❌ ${msg}`, attached_files: [] };
+				msgs[idx] = { role: 'assistant', content: msg, isError: true, attached_files: [] };
 				return { ...s, messages: msgs, loading: false, error: msg };
 			});
 		}
@@ -143,7 +147,7 @@ function createChatStore() {
 				messages: detail.messages.map((m) => ({
 					role: m.role as 'user' | 'assistant',
 					content: m.content,
-					attached_files: m.attached_files.map(f => ({
+					attached_files: m.attached_files.map((f) => ({
 						name: f.name,
 						type: f.type,
 						size_bytes: f.size_bytes

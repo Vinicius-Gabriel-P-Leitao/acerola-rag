@@ -26,16 +26,25 @@ vi.mock('./use-history.hook', () => ({
 }));
 
 import { api } from '$lib/api';
+import { historyStore } from './use-history.hook';
+
+const mockSources = [{ source_file: 'doc.pdf', chunk_text: 'trecho', score: 0.9 }];
 
 const SUCCESS_RESPONSE = {
 	answer: '<ContentResponse>\nResposta da IA\n</ContentResponse>',
 	conversation_id: 'conv-test-123',
-	sources: [{ source_file: 'doc.pdf', chunk_text: 'trecho', score: 0.9 }]
+	sources: mockSources
 };
 
 describe('chatStore', () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
+		vi.mocked(historyStore.getDetail).mockResolvedValue({
+			id: 'conv-test-123',
+			title: 'Teste',
+			messages: [],
+			sources: mockSources
+		});
 	});
 
 	it('appends user and assistant messages on send', async () => {
@@ -55,18 +64,54 @@ describe('chatStore', () => {
 		expect(chatStore.messages[1].content).toBe(SUCCESS_RESPONSE.answer);
 	});
 
-	it('stores conversation_id from response', async () => {
-		vi.mocked(api.postFormStream).mockImplementation((_p, _f, onToken, _err) => {
-			onToken(SUCCESS_RESPONSE.answer);
-			return Promise.resolve();
-		});
+	it('generates and sets conversationId on first send', async () => {
+		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
 		const { chatStore } = await import('./use-chat.hook');
 		chatStore.clear();
 
 		await chatStore.send('pergunta');
-		
-		// Current implementation doesn't extract conversationId from stream tokens yet
-		expect(chatStore.conversationId).toBeNull();
+
+		expect(chatStore.conversationId).not.toBeNull();
+		expect(typeof chatStore.conversationId).toBe('string');
+		expect(chatStore.conversationId!.length).toBeGreaterThan(0);
+	});
+
+	it('reuses existing conversationId on subsequent sends', async () => {
+		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
+		const { chatStore } = await import('./use-chat.hook');
+		chatStore.clear();
+
+		await chatStore.send('primeira');
+		const firstId = chatStore.conversationId;
+
+		await chatStore.send('segunda');
+		expect(chatStore.conversationId).toBe(firstId);
+	});
+
+	it('always sends conversation_id in FormData', async () => {
+		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
+		const { chatStore } = await import('./use-chat.hook');
+		chatStore.clear();
+
+		await chatStore.send('teste');
+
+		const form = vi.mocked(api.postFormStream).mock.calls[0][1] as FormData;
+		const convId = form.get('conversation_id') as string;
+		expect(convId).not.toBeNull();
+		expect(convId.length).toBeGreaterThan(0);
+	});
+
+	it('sends existing conversationId when already set', async () => {
+		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
+		const { chatStore } = await import('./use-chat.hook');
+		chatStore.clear();
+
+		await chatStore.send('primeira');
+		const firstId = chatStore.conversationId;
+
+		await chatStore.send('segunda');
+		const secondCallForm = vi.mocked(api.postFormStream).mock.calls[1][1] as FormData;
+		expect(secondCallForm.get('conversation_id')).toBe(firstId);
 	});
 
 	it('sends FormData not JSON', async () => {
@@ -77,14 +122,14 @@ describe('chatStore', () => {
 		await chatStore.send('teste');
 
 		expect(api.postFormStream).toHaveBeenCalledWith(
-			'/query/stream', 
-			expect.any(FormData), 
-			expect.any(Function), 
+			'/query/stream',
+			expect.any(FormData),
+			expect.any(Function),
 			expect.any(Function)
 		);
 	});
 
-	it('stores sources from response', async () => {
+	it('populates sources from history after stream completes', async () => {
 		vi.mocked(api.postFormStream).mockImplementation((_p, _f, onToken, _err) => {
 			onToken(SUCCESS_RESPONSE.answer);
 			return Promise.resolve();
@@ -94,35 +139,21 @@ describe('chatStore', () => {
 
 		await chatStore.send('pergunta');
 
-		// Current implementation doesn't extract sources from stream yet
+		expect(historyStore.getDetail).toHaveBeenCalled();
+		expect(chatStore.sources.length).toBe(1);
+		expect(chatStore.sources[0].source_file).toBe('doc.pdf');
+	});
+
+	it('keeps empty sources if history fetch fails', async () => {
+		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
+		vi.mocked(historyStore.getDetail).mockRejectedValueOnce(new Error('network error'));
+		const { chatStore } = await import('./use-chat.hook');
+		chatStore.clear();
+
+		await chatStore.send('pergunta');
+
 		expect(chatStore.sources.length).toBe(0);
-	});
-
-	it('sends existing conversation_id in subsequent messages', async () => {
-		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
-		const { chatStore } = await import('./use-chat.hook');
-		chatStore.clear();
-
-		// Manually set conversationId to test if it's sent
-		// Since send() doesn't set it yet, we just test the logic of sending it if present
-		const { writable, get } = await import('svelte/store');
-		// Note: we can't easily reach internal _store, but we can call loadConversation
-		// Or just rely on the fact that send() uses whatever is in the store.
-		
-		await chatStore.send('primeira');
-		const firstCall = vi.mocked(api.postFormStream).mock.calls[0];
-		expect((firstCall[1] as FormData).get('conversation_id')).toBeNull();
-	});
-
-	it('includes question in FormData', async () => {
-		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
-		const { chatStore } = await import('./use-chat.hook');
-		chatStore.clear();
-
-		await chatStore.send('minha pergunta');
-
-		const form = vi.mocked(api.postFormStream).mock.calls[0][1] as FormData;
-		expect(form.get('question')).toBe('minha pergunta');
+		expect(chatStore.loading).toBe(false);
 	});
 
 	it('sets error message on API failure', async () => {
@@ -133,7 +164,8 @@ describe('chatStore', () => {
 		await chatStore.send('pergunta');
 
 		const last = chatStore.messages.at(-1);
-		expect(last?.content).toContain('❌');
+		expect(last?.content).toBe('timeout');
+		expect(last?.isError).toBe(true);
 		expect(chatStore.error).toBe('timeout');
 	});
 
@@ -208,8 +240,10 @@ describe('chatStore', () => {
 		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
 		const { chatStore } = await import('./use-chat.hook');
 		chatStore.clear();
-		const file = new File(['content'], 'anexo.txt', { type: 'text/plain', lastModified: Date.now() });
-		// Svelte 5 / JSDOM might need some help with File if it's not fully standard
+		const file = new File(['content'], 'anexo.txt', {
+			type: 'text/plain',
+			lastModified: Date.now()
+		});
 		chatStore.attachFile(file);
 
 		await chatStore.send('com arquivo');
@@ -229,5 +263,28 @@ describe('chatStore', () => {
 		const userMsg = chatStore.messages[0];
 		expect(userMsg.attached_files?.length).toBe(1);
 		expect(userMsg.attached_files?.[0].name).toBe('doc.pdf');
+	});
+
+	it('fetches sources using the conversationId sent in FormData', async () => {
+		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
+		const { chatStore } = await import('./use-chat.hook');
+		chatStore.clear();
+
+		await chatStore.send('pergunta');
+
+		const form = vi.mocked(api.postFormStream).mock.calls[0][1] as FormData;
+		const sentId = form.get('conversation_id') as string;
+		expect(historyStore.getDetail).toHaveBeenCalledWith(sentId);
+	});
+
+	it('includes question in FormData', async () => {
+		vi.mocked(api.postFormStream).mockResolvedValue(undefined);
+		const { chatStore } = await import('./use-chat.hook');
+		chatStore.clear();
+
+		await chatStore.send('minha pergunta');
+
+		const form = vi.mocked(api.postFormStream).mock.calls[0][1] as FormData;
+		expect(form.get('question')).toBe('minha pergunta');
 	});
 });
