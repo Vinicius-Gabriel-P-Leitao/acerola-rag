@@ -21,7 +21,7 @@ services:
   rag:
     build:
       context: ..
-      dockerfile: container/dockerfile
+      dockerfile: docker/dockerfile
     container_name: acerola-rag
     command: python -m backend.main
     volumes:
