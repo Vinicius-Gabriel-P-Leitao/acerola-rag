@@ -57,6 +57,7 @@ function createChatStore() {
 	async function send(question: string) {
 		const state = get(_store);
 		const pending = state.pendingFiles;
+		const convId = state.conversationId ?? crypto.randomUUID();
 
 		_store.update((s) => ({
 			...s,
@@ -66,7 +67,8 @@ function createChatStore() {
 			],
 			loading: true,
 			error: null,
-			pendingFiles: []
+			pendingFiles: [],
+			conversationId: convId
 		}));
 
 		_store.update((s) => ({
@@ -79,12 +81,11 @@ function createChatStore() {
 		try {
 			const form = new FormData();
 			form.append('question', question);
-			if (state.conversationId) form.append('conversation_id', state.conversationId);
+			form.append('conversation_id', convId);
 			for (const pf of pending) {
 				if (pf.file) form.append('files', pf.file);
 			}
 
-			// Inicia o consumo do stream
 			await api.postFormStream(
 				'/query/stream',
 				form,
@@ -111,7 +112,13 @@ function createChatStore() {
 				}
 			);
 
-			_store.update((s) => ({ ...s, loading: false }));
+			// Busca sources do histórico após o stream terminar
+			try {
+				const detail = await historyStore.getDetail(convId);
+				_store.update((s) => ({ ...s, sources: detail.sources, loading: false }));
+			} catch {
+				_store.update((s) => ({ ...s, loading: false }));
+			}
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Erro ao consultar a API';
 			_store.update((s) => {

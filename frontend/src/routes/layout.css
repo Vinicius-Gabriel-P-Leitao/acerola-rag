@@ -185,4 +185,22 @@
 	:where(div.code-block) {
 		@apply my-6;
 	}
+
+	/* Tabelas: bordas, zebra striping e scroll horizontal */
+	:where(table) {
+		display: block;
+		width: 100%;
+		overflow-x: auto;
+		border-collapse: collapse;
+		@apply my-4 text-sm;
+	}
+	:where(th) {
+		@apply border border-border bg-muted/60 px-3 py-2 text-left font-semibold;
+	}
+	:where(td) {
+		@apply border border-border px-3 py-2;
+	}
+	:where(tbody tr:nth-child(even) td) {
+		@apply bg-muted/30;
+	}
 }

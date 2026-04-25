@@ -88,4 +88,51 @@ describe('documentsStore', () => {
 		});
 		expect(result).toMatchObject({ job_id: 'abc123' });
 	});
+
+	it('setPage updates page and fetches', async () => {
+		vi.mocked(api.get).mockResolvedValue({ total: 30, items: [] });
+
+		const { documentsStore } = await import('./use-documents.hook');
+		documentsStore.setPage(3);
+		await new Promise((r) => setTimeout(r, 0));
+
+		expect(documentsStore.page).toBe(3);
+		expect(api.get).toHaveBeenCalledWith(
+			'/documents',
+			expect.objectContaining({ page: '3' })
+		);
+	});
+
+	it('setSearch resets to page 1 and fetches', async () => {
+		vi.mocked(api.get).mockResolvedValue({ total: 5, items: [] });
+
+		const { documentsStore } = await import('./use-documents.hook');
+		documentsStore.setPage(4);
+		documentsStore.setSearch('relatorio');
+		await new Promise((r) => setTimeout(r, 0));
+
+		expect(documentsStore.page).toBe(1);
+		expect(api.get).toHaveBeenCalledWith(
+			'/documents',
+			expect.objectContaining({ search: 'relatorio', page: '1' })
+		);
+	});
+
+	it('totalPages is 1 when total is 0', async () => {
+		vi.mocked(api.get).mockResolvedValueOnce({ total: 0, items: [] });
+
+		const { documentsStore } = await import('./use-documents.hook');
+		await documentsStore.fetchPage();
+
+		expect(documentsStore.totalPages).toBe(1);
+	});
+
+	it('totalPages rounds up correctly', async () => {
+		vi.mocked(api.get).mockResolvedValueOnce({ total: 11, items: [] });
+
+		const { documentsStore } = await import('./use-documents.hook');
+		await documentsStore.fetchPage();
+
+		expect(documentsStore.totalPages).toBe(2);
+	});
 });

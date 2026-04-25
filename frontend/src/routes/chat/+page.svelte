@@ -16,6 +16,8 @@
 	import ShSpinner from '$lib/components/sh-spinner/sh-spinner.svelte';
 	import ShCodeBlock from '$lib/components/sh-code-block/sh-code-block.svelte';
 	import ShExpandable from '$lib/components/sh-expandable/sh-expandable.svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import SourcesModal from './components/sources-modal.svelte';
 	import SendIcon from '@lucide/svelte/icons/send';
 	import BotIcon from '@lucide/svelte/icons/bot';
 	import UserIcon from '@lucide/svelte/icons/user';
@@ -24,6 +26,7 @@
 	import XIcon from '@lucide/svelte/icons/x';
 	import FileTextIcon from '@lucide/svelte/icons/file-text';
 	import BookOpenIcon from '@lucide/svelte/icons/book-open';
+	import MaximizeIcon from '@lucide/svelte/icons/maximize-2';
 	import { AI_CONTRACT } from '$lib/contracts/ai.contract';
 
 	type MessageBlock = {
@@ -38,6 +41,7 @@
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 	let modelMenuOpen = $state(false);
 	let sourcesOpen = $state(false);
+	let sourcesModalOpen = $state(false);
 
 	const headerStore = useHeader();
 	headerStore.action = headerAction;
@@ -316,30 +320,50 @@
 		<aside class="hidden w-72 shrink-0 flex-col border-l border-border bg-card md:flex">
 			<div class="flex items-center justify-between border-b border-border px-4 py-3">
 				<p class="text-sm font-semibold">Fontes da conversa</p>
-				<button
-					class="text-muted-foreground hover:text-foreground"
-					onclick={() => (sourcesOpen = false)}
-				>
-					<XIcon class="size-4" />
-				</button>
+				<div class="flex items-center gap-1">
+					<button
+						class="text-muted-foreground hover:text-foreground"
+						title="Ver todas as fontes"
+						onclick={() => (sourcesModalOpen = true)}
+					>
+						<MaximizeIcon class="size-4" />
+					</button>
+					<button
+						class="text-muted-foreground hover:text-foreground"
+						onclick={() => (sourcesOpen = false)}
+					>
+						<XIcon class="size-4" />
+					</button>
+				</div>
 			</div>
 			<div class="flex-1 overflow-y-auto p-3">
-				{#each $chatStore.sources as src, i (i)}
-					<div class="mb-3 rounded-lg border border-border bg-background p-3 text-xs">
-						<div class="mb-1 flex items-center justify-between gap-2">
-							<span class="flex items-center gap-1 font-medium text-foreground">
-								<FileTextIcon class="size-3 shrink-0 text-muted-foreground" />
-								<span class="truncate">{src.source_file}</span>
-							</span>
-							<span class="shrink-0 text-muted-foreground">{(src.score * 100).toFixed(0)}%</span>
+				<Tooltip.Provider>
+					{#each $chatStore.sources as src, i (i)}
+						<div class="mb-3 rounded-lg border border-border bg-background p-3 text-xs">
+							<div class="mb-1 flex items-center justify-between gap-2">
+								<span class="flex min-w-0 items-center gap-1 font-medium text-foreground">
+									<FileTextIcon class="size-3 shrink-0 text-muted-foreground" />
+									<Tooltip.Root>
+										<Tooltip.Trigger class="min-w-0 cursor-default">
+											<span class="block truncate">{src.source_file}</span>
+										</Tooltip.Trigger>
+										<Tooltip.Content side="top">
+											{src.source_file}
+										</Tooltip.Content>
+									</Tooltip.Root>
+								</span>
+								<span class="shrink-0 text-muted-foreground">{(src.score * 100).toFixed(0)}%</span>
+							</div>
+							<p class="line-clamp-4 text-muted-foreground">{src.chunk_text}</p>
 						</div>
-						<p class="line-clamp-4 text-muted-foreground">{src.chunk_text}</p>
-					</div>
-				{/each}
+					{/each}
+				</Tooltip.Provider>
 			</div>
 		</aside>
 	{/if}
 </div>
+
+<SourcesModal bind:open={sourcesModalOpen} sources={$chatStore.sources} />
 
 {#snippet inputArea()}
 	<!-- Pending file chips -->

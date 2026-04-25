@@ -80,7 +80,10 @@
 		style="box-shadow: var(--shadow-sidebar);"
 	>
 		<!-- Logo + toggle -->
-		<div class="flex h-14 items-center gap-2 border-b border-sidebar-border px-3">
+		<div
+			class="flex h-14 items-center gap-2 border-b border-sidebar-border
+				{sidebarOpen ? 'px-3' : 'justify-center'}"
+		>
 			{#if sidebarOpen}
 				<img src={faviconPng} alt="Acerola RAG" class="h-6 w-6 shrink-0" />
 				<span class="flex-1 truncate text-base font-semibold text-sidebar-foreground"
@@ -88,7 +91,8 @@
 				>
 			{/if}
 			<button
-				class="ml-auto flex size-7 items-center justify-center rounded-md text-sidebar-foreground opacity-60 hover:bg-sidebar-accent hover:opacity-100"
+				class="flex size-7 items-center justify-center rounded-md text-sidebar-foreground opacity-60 hover:bg-sidebar-accent hover:opacity-100
+					{sidebarOpen ? 'ml-auto' : ''}"
 				onclick={() => (sidebarOpen = !sidebarOpen)}
 				title="Alternar sidebar"
 			>
@@ -100,7 +104,8 @@
 		<div class="px-2 pt-2">
 			<button
 				onclick={newConversation}
-				class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+				class="flex w-full items-center gap-2 rounded-md py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
+					{sidebarOpen ? 'px-2' : 'justify-center px-0'}"
 			>
 				<PlusIcon class="size-4 shrink-0" />
 				{#if sidebarOpen}<span>Nova conversa</span>{/if}
@@ -112,8 +117,9 @@
 			{#each navItems as { href, label, Icon } (href)}
 				<a
 					{href}
-					class="flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
-						{page.url.pathname.startsWith(href) ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}"
+					class="flex items-center gap-2 rounded-md py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground
+						{page.url.pathname.startsWith(href) ? 'bg-sidebar-accent text-sidebar-accent-foreground' : ''}
+						{sidebarOpen ? 'px-2' : 'justify-center px-0'}"
 					title={sidebarOpen ? undefined : label}
 				>
 					<Icon class="size-4 shrink-0" />

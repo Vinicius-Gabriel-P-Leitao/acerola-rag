@@ -203,6 +203,53 @@ def test_query_stream_endpoint(client):
     assert r.text == "token1token2"
 
 
+def test_query_stream_accepts_client_provided_conversation_id(client):
+    """Frontend gera o UUID e o envia; o backend deve reutilizá-lo."""
+    with _mock_cfg(True), \
+         patch("backend.rag.engine.stream_query", return_value=["resposta"]):
+        r = client.post(
+            "/api/v1/query/stream",
+            data={"question": "q", "conversation_id": "client-uuid-123"},
+        )
+    assert r.status_code == 200
+
+
+def test_query_stream_persists_history_for_sources_fetch(client):
+    """Após o stream, GET /history/{id} deve retornar a conversa com sources."""
+    sources = [{"source_file": "doc.pdf", "chunk_text": "trecho", "score": 0.85}]
+
+    def _fake_stream(question, session_id, extra_context, attached_meta):
+        yield "resposta"
+        from backend.history import manager as hist
+        title = question[:60].strip()
+        hist.create_conversation(session_id, title)
+        hist.save_message(session_id, "user", question, attached_files=attached_meta or [])
+        asst_id = hist.save_message(session_id, "assistant", f"<ContentResponse>\nresposta\n</ContentResponse>")
+        hist.save_rag_sources(session_id, asst_id, sources)
+
+    with _mock_cfg(True), \
+         patch("backend.rag.engine.stream_query", side_effect=_fake_stream):
+        r = client.post(
+            "/api/v1/query/stream",
+            data={"question": "qual é X?", "conversation_id": "stream-conv-1"},
+        )
+    assert r.status_code == 200
+
+    r2 = client.get("/api/v1/history/stream-conv-1")
+    assert r2.status_code == 200
+    body = r2.json()
+    assert body["id"] == "stream-conv-1"
+    assert len(body["sources"]) == 1
+    assert body["sources"][0]["source_file"] == "doc.pdf"
+
+
+def test_query_stream_too_many_files_returns_400(client):
+    with _mock_cfg(True):
+        files = [("files", (f"f{i}.txt", b"data", "text/plain")) for i in range(6)]
+        r = client.post("/api/v1/query/stream", data={"question": "q"}, files=files)
+    assert r.status_code == 400
+
+
 # ── /history ──────────────────────────────────────────────────────────────────
 
 def test_history_list_empty_at_start(client):
