@@ -13,10 +13,11 @@ services:
       - "6334:6334"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.qdrant.rule=Host(`qdrant.vinicius-gpl.com`)"
       - "traefik.http.routers.qdrant.entrypoints=web"
+      # Mude de acordo com seu dominio ou tire tudo para usar sem traefik
+      - "traefik.http.routers.qdrant.rule=Host(`qdrant.vinicius-gpl.com`)"
       - "traefik.http.services.qdrant.loadbalancer.server.port=6333"
-      - "traefik.http.routers.qdrant.middlewares=authelia-forwardauth@docker" 
+      - "traefik.http.routers.qdrant.middlewares=authelia-forwardauth@docker"
 
   rag:
     build:
@@ -30,13 +31,14 @@ services:
       - .env
     depends_on:
       - qdrant
-    restart: unless-stopped 
+    restart: unless-stopped
     networks:
       - traefik_proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.rag.rule=Host(`rag.vinicius-gpl.com`)"
       - "traefik.http.routers.rag.entrypoints=web"
+      # Mude de acordo com seu dominio ou tire tudo para usar sem traefik
+      - "traefik.http.routers.rag.rule=Host(`rag.vinicius-gpl.com`)"
       - "traefik.http.services.rag.loadbalancer.server.port=8000"
       - "traefik.http.routers.rag.middlewares=authelia-forwardauth@docker"
 
